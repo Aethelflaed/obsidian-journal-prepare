@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.89"
+anyhow = "1.0.91"
 chrono = "0.4.38"
-clap = { version = "4.5.17", features = ["derive"] }
+clap = { version = "4.5.20", features = ["derive"] }
 derive_more = { version = "1.0.0", features = ["display", "from"] }
 lazy_static = "1.5.0"
-regex = "1.10.6"
+regex = "1.11.1"
 
 [dev-dependencies]
 assert_fs = "1.1.2"
