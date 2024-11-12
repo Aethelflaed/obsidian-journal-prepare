@@ -8,9 +8,6 @@ mod options;
 mod page;
 use page::Page;
 
-mod journal_name;
-use journal_name::JournalName;
-
 mod date_utils;
 use date_utils::{DateRange, Month, Navigation, Year};
 
@@ -18,7 +15,7 @@ mod metadata;
 use metadata::{Filters, ToMetadata};
 
 mod utils;
-use utils::{ToEmbedded, ToLink};
+use utils::{JournalName, ToEmbedded, ToLink};
 
 fn main() -> Result<()> {
     let cli = options::Cli::try_parse_from(std::env::args_os())?;
