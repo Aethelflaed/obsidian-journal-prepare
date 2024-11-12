@@ -31,19 +31,19 @@ impl JournalName for NaiveDate {
 
 impl JournalName for Month {
     fn to_journal_name(&self) -> String {
-        format!("{:04}/{}", self.year, self.name())
+        format!("{}/{}", self.year(), self.name())
     }
     fn to_journal_path_name(&self) -> String {
-        format!("{:04}___{}.md", self.year, self.name())
+        format!("{}___{}.md", self.year(), self.name())
     }
 }
 
 impl JournalName for Year {
     fn to_journal_name(&self) -> String {
-        format!("{:04}", self.0)
+        self.to_string()
     }
 
     fn to_journal_path_name(&self) -> String {
-        format!("{:04}.md", self.0)
+        format!("{}.md", self)
     }
 }

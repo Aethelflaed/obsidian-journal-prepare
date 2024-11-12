@@ -11,11 +11,8 @@ use page::Page;
 mod journal_name;
 use journal_name::JournalName;
 
-mod navigation;
-use navigation::Navigation;
-
-mod date_range;
-use date_range::DateRange;
+mod date_utils;
+use date_utils::{DateRange, Month, Navigation, Year};
 
 mod metadata;
 use metadata::{Filters, ToMetadata};
@@ -29,30 +26,6 @@ fn main() -> Result<()> {
     Preparer::try_from(cli)?.run()?;
 
     Ok(())
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, derive_more::From)]
-struct Year(i32);
-
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
-struct Month {
-    year: i32,
-    month: u32,
-}
-
-impl Month {
-    pub fn name(&self) -> &str {
-        chrono::Month::try_from(self.month as u8).unwrap().name()
-    }
-}
-
-impl From<NaiveDate> for Month {
-    fn from(date: NaiveDate) -> Self {
-        Month {
-            year: date.year(),
-            month: date.month(),
-        }
-    }
 }
 
 struct Preparer {
