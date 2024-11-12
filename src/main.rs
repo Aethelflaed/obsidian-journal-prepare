@@ -18,7 +18,20 @@ mod utils;
 use utils::{JournalName, ToEmbedded, ToLink};
 
 fn main() -> Result<()> {
-    let cli = options::Cli::try_parse_from(std::env::args_os())?;
+    use clap::error::ErrorKind::*;
+
+    let cli = match options::Cli::try_parse_from(std::env::args_os()) {
+        Ok(cli) => cli,
+        Err(e) => match e.kind() {
+            DisplayHelp | DisplayVersion => {
+                println!("{}", e);
+                return Ok(());
+            }
+            _ => {
+                return Err(e.into());
+            }
+        }
+    };
 
     Preparer::try_from(cli)?.run()?;
 
