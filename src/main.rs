@@ -67,7 +67,7 @@ impl TryFrom<options::Cli> for Preparer {
 
 impl Preparer {
     fn run(&self) -> Result<()> {
-        let mut date = self.from.clone();
+        let mut date: NaiveDate = self.from;
         let mut year = Year::from(date.year());
         let mut month = Month::from(date);
         let mut week = date.iso_week();

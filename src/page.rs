@@ -69,7 +69,7 @@ impl Display for PageContent {
         for line in &self.metadata {
             writeln!(f, "{}", line)?;
         }
-        writeln!(f, "")?;
+        writeln!(f)?;
 
         let mut first_content = true;
         for line in &self.content {
@@ -100,14 +100,12 @@ impl FromStr for PageContent {
                 } else if !line.is_empty() {
                     page.metadata.push(line.parse()?);
                 }
+            } else if line.starts_with("-") {
+                page.content.push(content);
+                content = line.to_owned();
             } else {
-                if line.starts_with("-") {
-                    page.content.push(content);
-                    content = line.to_owned();
-                } else {
-                    content.push_str("\n");
-                    content.push_str(line);
-                }
+                content.push('\n');
+                content.push_str(line);
             }
         }
         if read_content {
@@ -161,9 +159,14 @@ mod tests {
             - One other thing
         "};
 
-        file.write_str(formatdoc! ("
+        file.write_str(
+            formatdoc!(
+            "
             {metadata}
-            {content}").as_str())?;
+            {content}"
+            )
+            .as_str(),
+        )?;
 
         let mut page: Page = file.path().try_into()?;
         page.write()?;
