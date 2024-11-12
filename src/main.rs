@@ -60,6 +60,8 @@ struct Preparer {
     pub to: NaiveDate,
     pub path: PathBuf,
     pub day_options: options::DayOptions,
+    pub week_options: options::WeekOptions,
+    pub month_options: options::MonthOptions,
 }
 
 impl TryFrom<options::Cli> for Preparer {
@@ -71,6 +73,8 @@ impl TryFrom<options::Cli> for Preparer {
             from,
             path,
             day,
+            week,
+            month,
         }: options::Cli,
     ) -> Result<Self> {
         let from = from.unwrap_or(Utc::now().date_naive());
@@ -85,6 +89,8 @@ impl TryFrom<options::Cli> for Preparer {
             to,
             path,
             day_options: day.into(),
+            week_options: week.into(),
+            month_options: month.into(),
         })
     }
 }
@@ -144,12 +150,12 @@ impl Preparer {
         let first = month.first();
         let last = month.last();
 
-        let next = month.next().to_link().to_metadata("next");
-        let prev = month.prev().to_link().to_metadata("prev");
-
         page.push_metadata(Filters::default().push("month", false));
-        page.push_metadata(next);
-        page.push_metadata(prev);
+
+        if self.month_options.nav {
+            page.push_metadata(month.next().to_link().to_metadata("next"));
+            page.push_metadata(month.prev().to_link().to_metadata("prev"));
+        }
 
         let mut date = first;
         loop {
@@ -178,14 +184,15 @@ impl Preparer {
         let first = week.first();
         let last = week.last();
 
-        let month = Month::from(first).to_link().to_metadata("month");
-        let next = week.next().to_link().to_metadata("next");
-        let prev = week.prev().to_link().to_metadata("prev");
-
         page.push_metadata(Filters::default().push("week", false).push("month", false));
-        page.push_metadata(month);
-        page.push_metadata(next);
-        page.push_metadata(prev);
+
+        if self.week_options.month {
+            page.push_metadata(Month::from(first).to_link().to_metadata("month"));
+        }
+        if self.week_options.nav {
+            page.push_metadata(week.next().to_link().to_metadata("next"));
+            page.push_metadata(week.prev().to_link().to_metadata("prev"));
+        }
 
         let mut date = first;
         loop {
