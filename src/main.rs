@@ -18,6 +18,9 @@ use date_range::DateRange;
 mod metadata;
 use metadata::{Filters, ToMetadata};
 
+mod utils;
+use utils::{ToLink, ToEmbedded};
+
 #[derive(Default, Clone, Debug, Parser)]
 #[command(version, infer_subcommands = true)]
 pub struct Cli {
@@ -240,37 +243,5 @@ impl Preparer {
 
     fn journal_path(&self, name: String) -> PathBuf {
         self.path.join("journals").join(name)
-    }
-}
-
-#[derive(Debug, Clone, derive_more::Display)]
-#[display("[[{name}]]")]
-pub struct Link {
-    pub name: String,
-}
-
-trait ToLink {
-    fn to_link(&self) -> Link;
-}
-impl<T: JournalName> ToLink for T {
-    fn to_link(&self) -> Link {
-        Link {
-            name: self.to_journal_name(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, derive_more::Display)]
-#[display("{{{{embed {link}}}}}")]
-pub struct Embedded {
-    pub link: Link,
-}
-
-trait ToEmbedded {
-    fn into_embedded(self) -> Embedded;
-}
-impl ToEmbedded for Link {
-    fn into_embedded(self) -> Embedded {
-        Embedded { link: self }
     }
 }
