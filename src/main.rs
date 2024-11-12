@@ -3,6 +3,8 @@ use chrono::{Datelike, Days, IsoWeek, Months, NaiveDate, Utc, Weekday};
 use clap::Parser;
 use std::path::PathBuf;
 
+mod options;
+
 mod page;
 use page::Page;
 
@@ -19,40 +21,12 @@ mod metadata;
 use metadata::{Filters, ToMetadata};
 
 mod utils;
-use utils::{ToLink, ToEmbedded};
-
-#[derive(Default, Clone, Debug, Parser)]
-#[command(version, infer_subcommands = true)]
-pub struct Cli {
-    /// Path to logseq graph
-    #[arg(long)]
-    pub path: PathBuf,
-
-    /// Only prepare journal starting from given date
-    #[arg(long, value_name = "DATE")]
-    pub from: Option<NaiveDate>,
-
-    /// Only prepare journal up to given date
-    #[arg(long, value_name = "DATE")]
-    pub to: Option<NaiveDate>,
-}
+use utils::{ToEmbedded, ToLink};
 
 fn main() -> Result<()> {
-    let cli = Cli::try_parse_from(std::env::args_os())?;
+    let cli = options::Cli::try_parse_from(std::env::args_os())?;
 
-    let from = cli.from.unwrap_or(Utc::now().date_naive());
-    let to = cli.to.unwrap_or(from + Months::new(1));
-
-    if to <= from {
-        anyhow::bail!("--from {} should be less than --to {}", from, to);
-    }
-
-    Preparer {
-        from,
-        to,
-        path: cli.path,
-    }
-    .run()?;
+    Preparer::try_from(cli)?.run()?;
 
     Ok(())
 }
@@ -85,6 +59,34 @@ struct Preparer {
     pub from: NaiveDate,
     pub to: NaiveDate,
     pub path: PathBuf,
+    pub day_options: options::DayOptions,
+}
+
+impl TryFrom<options::Cli> for Preparer {
+    type Error = anyhow::Error;
+
+    fn try_from(
+        options::Cli {
+            to,
+            from,
+            path,
+            day,
+        }: options::Cli,
+    ) -> Result<Self> {
+        let from = from.unwrap_or(Utc::now().date_naive());
+        let to = to.unwrap_or(from + Months::new(1));
+
+        if to <= from {
+            anyhow::bail!("--from {} should be less than --to {}", from, to);
+        }
+
+        Ok(Preparer {
+            from,
+            to,
+            path,
+            day_options: day.into(),
+        })
+    }
 }
 
 impl Preparer {
@@ -209,23 +211,32 @@ impl Preparer {
         let path = self.journal_path(date.to_journal_path_name());
         let mut page = Page::new(&path);
 
-        let day = match date.weekday() {
-            Weekday::Mon => "Monday",
-            Weekday::Tue => "Tuesday",
-            Weekday::Wed => "Wednesday",
-            Weekday::Thu => "Thursday",
-            Weekday::Fri => "Friday",
-            Weekday::Sat => "Saturday",
-            Weekday::Sun => "Sunday",
-        };
-
         page.push_metadata(
             Filters::default()
                 .push(date.iso_week().to_journal_name(), false)
                 .push(Month::from(date).to_journal_name(), false),
         );
-        page.push_metadata(day.to_metadata("day"));
-        page.push_metadata(date.iso_week().to_link().to_metadata("week"));
+
+        if self.day_options.day {
+            let day = match date.weekday() {
+                Weekday::Mon => "Monday",
+                Weekday::Tue => "Tuesday",
+                Weekday::Wed => "Wednesday",
+                Weekday::Thu => "Thursday",
+                Weekday::Fri => "Friday",
+                Weekday::Sat => "Saturday",
+                Weekday::Sun => "Sunday",
+            };
+
+            page.push_metadata(day.to_metadata("day"));
+        }
+
+        if self.day_options.week {
+            page.push_metadata(date.iso_week().to_link().to_metadata("week"));
+        }
+        if self.day_options.month {
+            page.push_metadata(Month::from(date).to_link().to_metadata("month"));
+        }
 
         if path.exists() {
             page = Page::try_from(path.as_path())? + page;
