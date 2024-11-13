@@ -43,6 +43,8 @@ pub enum DayOption {
     Month,
 }
 
+#[derive(derive_more::Display)]
+#[display("Day options: {{ day of week: {day}, week: {week}, month: {month} }}")]
 pub struct DayOptions {
     pub day: bool,
     pub week: bool,
@@ -81,6 +83,8 @@ pub enum WeekOption {
     Nav,
 }
 
+#[derive(derive_more::Display)]
+#[display("Week options: {{ navigation links: {nav}, month: {month} }}")]
 pub struct WeekOptions {
     pub nav: bool,
     pub month: bool,
@@ -115,6 +119,8 @@ pub enum MonthOption {
     Nav,
 }
 
+#[derive(derive_more::Display)]
+#[display("Month options: {{ navigation links: {nav} }}")]
 pub struct MonthOptions {
     pub nav: bool,
 }

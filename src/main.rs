@@ -114,6 +114,12 @@ impl TryFrom<options::Cli> for Preparer {
 
 impl Preparer {
     fn run(&self) -> Result<()> {
+        log::debug!("Preparing journal {:?}", self.path.display());
+        log::debug!("from {} to {}", self.from, self.to);
+        log::debug!("{}", self.day_options);
+        log::debug!("{}", self.week_options);
+        log::debug!("{}", self.month_options);
+
         let mut date: NaiveDate = self.from;
         let mut year = Year::from(date.year());
         let mut month = Month::from(date);
@@ -156,7 +162,7 @@ impl Preparer {
     fn print_year(&self, year: Year) -> Result<()> {
         let path = self.page_path(year.to_journal_path_name());
 
-        println!("{}", path.display());
+        log::info!("year: {}", path.display());
         Ok(())
     }
 
@@ -190,7 +196,7 @@ impl Preparer {
 
         page.write()?;
 
-        println!("{}", path.display());
+        log::info!("month: {}", path.display());
         Ok(())
     }
 
@@ -227,7 +233,7 @@ impl Preparer {
 
         page.write()?;
 
-        println!("{}", path.display());
+        log::info!("week: {}", path.display());
         Ok(())
     }
 
@@ -268,7 +274,7 @@ impl Preparer {
 
         page.write()?;
 
-        println!("{}", path.display());
+        log::info!("day: {}", path.display());
         Ok(())
     }
 
