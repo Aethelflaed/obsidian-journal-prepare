@@ -78,6 +78,7 @@ struct Preparer {
     pub day_options: options::DayOptions,
     pub week_options: options::WeekOptions,
     pub month_options: options::MonthOptions,
+    pub year_options: options::YearOptions,
 }
 
 impl TryFrom<options::Cli> for Preparer {
@@ -91,6 +92,7 @@ impl TryFrom<options::Cli> for Preparer {
             day,
             week,
             month,
+            year,
             ..
         }: options::Cli,
     ) -> Result<Self> {
@@ -108,6 +110,7 @@ impl TryFrom<options::Cli> for Preparer {
             day_options: day.into(),
             week_options: week.into(),
             month_options: month.into(),
+            year_options: year.into(),
         })
     }
 }
@@ -161,6 +164,18 @@ impl Preparer {
 
     fn print_year(&self, year: Year) -> Result<()> {
         let path = self.page_path(year.to_journal_path_name());
+        let mut page = Page::new(&path);
+
+        if self.year_options.nav {
+            page.push_metadata(year.next().to_link().to_metadata("next"));
+            page.push_metadata(year.prev().to_link().to_metadata("prev"));
+        }
+
+        if path.exists() {
+            page = Page::try_from(path.as_path())? + page;
+        }
+
+        page.write()?;
 
         log::info!("year: {}", path.display());
         Ok(())

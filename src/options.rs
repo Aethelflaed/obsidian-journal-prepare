@@ -31,6 +31,10 @@ pub struct Cli {
     /// Configure month pages header
     #[arg(short, long, num_args = 1.., value_enum, value_delimiter = ',', default_values_t = [MonthOption::Nav])]
     pub month: Vec<MonthOption>,
+
+    /// Configure year pages header
+    #[arg(short, long, num_args = 1.., value_enum, value_delimiter = ',', default_values_t = [YearOption::Nav])]
+    pub year: Vec<YearOption>,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -143,6 +147,40 @@ impl FromIterator<MonthOption> for MonthOptions {
 
         Self {
             nav: iter.any(|o| matches!(o, MonthOption::Nav)),
+        }
+    }
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum YearOption {
+    /// Display links to previous and next year
+    Nav,
+}
+
+#[derive(derive_more::Display)]
+#[display("Year options: {{ navigation links: {nav} }}")]
+pub struct YearOptions {
+    pub nav: bool,
+}
+
+impl<T> From<T> for YearOptions
+where
+    T: IntoIterator<Item = YearOption>,
+{
+    fn from(iter: T) -> Self {
+        Self::from_iter(iter)
+    }
+}
+
+impl FromIterator<YearOption> for YearOptions {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = YearOption>,
+    {
+        let mut iter = iter.into_iter();
+
+        Self {
+            nav: iter.any(|o| matches!(o, YearOption::Nav)),
         }
     }
 }
