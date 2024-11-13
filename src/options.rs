@@ -5,6 +5,9 @@ use std::path::PathBuf;
 #[derive(Default, Clone, Debug, Parser)]
 #[command(version, infer_subcommands = true)]
 pub struct Cli {
+    #[clap(flatten)]
+    pub verbose: clap_verbosity_flag::Verbosity,
+
     /// Path to logseq graph
     #[arg(short, long)]
     pub path: PathBuf,
