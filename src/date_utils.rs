@@ -4,7 +4,7 @@ use chrono::{Datelike, Days, IsoWeek, Months, NaiveDate, Weekday};
 #[display("{:04}", _0)]
 pub struct Year(i32);
 
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Month {
     year: i32,
     month: u32,
@@ -25,6 +25,30 @@ impl From<NaiveDate> for Month {
         Month {
             year: date.year(),
             month: date.month(),
+        }
+    }
+}
+impl std::ops::Add<Months> for Month {
+    type Output = Self;
+
+    fn add(self, rhs: Months) -> Self {
+        let month = self.month - 1 + rhs.as_u32();
+
+        Month {
+            year: self.year + month.div_euclid(12) as i32,
+            month: month.rem_euclid(12) + 1,
+        }
+    }
+}
+impl std::ops::Sub<Months> for Month {
+    type Output = Self;
+
+    fn sub(self, rhs: Months) -> Self {
+        let month = self.month as i32 - 1 - rhs.as_u32() as i32;
+
+        Month {
+            year: self.year + month.div_euclid(12),
+            month: month.rem_euclid(12) as u32 + 1,
         }
     }
 }
@@ -88,10 +112,10 @@ impl Navigation for NaiveDate {
 
 impl Navigation for Month {
     fn next(&self) -> Self {
-        (self.first() + Months::new(1)).into()
+        *self + Months::new(1)
     }
     fn prev(&self) -> Self {
-        (self.first() - Months::new(1)).into()
+        *self - Months::new(1)
     }
 }
 
@@ -116,6 +140,28 @@ impl Navigation for IsoWeek {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn month_arithmetic() {
+        let month = Month::from(NaiveDate::from_ymd_opt(2024, 12, 1).unwrap());
+
+        assert_eq!(
+            Month {
+                year: 2025,
+                month: 1
+            },
+            month + Months::new(1)
+        );
+
+        assert_eq!(
+            Month {
+                year: 2023,
+                month: 12
+            },
+            month - Months::new(12)
+        );
+    }
+
     mod date_range {
         use super::*;
 
@@ -156,6 +202,13 @@ mod tests {
                 },
                 month.next()
             );
+            assert_eq!(
+                Month {
+                    year: 2025,
+                    month: 1
+                },
+                month.next()
+            );
         }
 
         #[test]
@@ -165,6 +218,7 @@ mod tests {
             assert_eq!(Year::from(2025), year.next());
         }
     }
+
     mod navigation {
         use super::*;
 

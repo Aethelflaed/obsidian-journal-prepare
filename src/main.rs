@@ -171,6 +171,19 @@ impl Preparer {
             page.push_metadata(year.prev().to_link().to_metadata("prev"));
         }
 
+        let first = year.first();
+        let last = year.last();
+
+        let mut month = first;
+        loop {
+            page.push_content(month.to_link());
+
+            month = month + Months::new(1);
+            if month > last {
+                break;
+            }
+        }
+
         if path.exists() {
             page = Page::try_from(path.as_path())? + page;
         }
