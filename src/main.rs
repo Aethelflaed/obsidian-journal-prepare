@@ -122,6 +122,7 @@ impl Preparer {
         log::debug!("{}", self.day_options);
         log::debug!("{}", self.week_options);
         log::debug!("{}", self.month_options);
+        log::debug!("{}", self.year_options);
 
         let mut date: NaiveDate = self.from;
         let mut year = Year::from(date.year());
