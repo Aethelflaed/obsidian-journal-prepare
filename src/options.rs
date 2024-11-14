@@ -21,19 +21,19 @@ pub struct Cli {
     pub to: Option<NaiveDate>,
 
     /// Configure day pages header
-    #[arg(short, long, num_args = 1.., value_enum, value_delimiter = ',', default_values_t = [DayOption::Day, DayOption::Week])]
+    #[arg(short, long, num_args = 0.., value_enum, value_delimiter = ',', default_values_t = [DayOption::Day, DayOption::Week])]
     pub day: Vec<DayOption>,
 
     /// Configure week pages header
-    #[arg(short, long, num_args = 1.., value_enum, value_delimiter = ',', default_values_t = [WeekOption::Nav, WeekOption::Month])]
+    #[arg(short, long, num_args = 0.., value_enum, value_delimiter = ',', default_values_t = [WeekOption::Nav, WeekOption::Month])]
     pub week: Vec<WeekOption>,
 
     /// Configure month pages header
-    #[arg(short, long, num_args = 1.., value_enum, value_delimiter = ',', default_values_t = [MonthOption::Nav])]
+    #[arg(short, long, num_args = 0.., value_enum, value_delimiter = ',', default_values_t = [MonthOption::Nav])]
     pub month: Vec<MonthOption>,
 
     /// Configure year pages header
-    #[arg(short, long, num_args = 1.., value_enum, value_delimiter = ',', default_values_t = [YearOption::Nav])]
+    #[arg(short, long, num_args = 0.., value_enum, value_delimiter = ',', default_values_t = [YearOption::Nav])]
     pub year: Vec<YearOption>,
 }
 
@@ -55,26 +55,13 @@ pub struct DayOptions {
     pub month: bool,
 }
 
-impl<T> From<T> for DayOptions
-where
-    T: IntoIterator<Item = DayOption>,
+impl From<Vec<DayOption>> for DayOptions
 {
-    fn from(iter: T) -> Self {
-        Self::from_iter(iter)
-    }
-}
-
-impl FromIterator<DayOption> for DayOptions {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = DayOption>,
-    {
-        let mut iter = iter.into_iter();
-
+    fn from(vec: Vec<DayOption>) -> Self {
         Self {
-            day: iter.any(|o| matches!(o, DayOption::Day)),
-            week: iter.any(|o| matches!(o, DayOption::Week)),
-            month: iter.any(|o| matches!(o, DayOption::Month)),
+            day: vec.iter().any(|o| matches!(o, DayOption::Day)),
+            week: vec.iter().any(|o| matches!(o, DayOption::Week)),
+            month: vec.iter().any(|o| matches!(o, DayOption::Month)),
         }
     }
 }
@@ -94,25 +81,12 @@ pub struct WeekOptions {
     pub month: bool,
 }
 
-impl<T> From<T> for WeekOptions
-where
-    T: IntoIterator<Item = WeekOption>,
+impl From<Vec<WeekOption>> for WeekOptions
 {
-    fn from(iter: T) -> Self {
-        Self::from_iter(iter)
-    }
-}
-
-impl FromIterator<WeekOption> for WeekOptions {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = WeekOption>,
-    {
-        let mut iter = iter.into_iter();
-
+    fn from(vec: Vec<WeekOption>) -> Self {
         Self {
-            nav: iter.any(|o| matches!(o, WeekOption::Nav)),
-            month: iter.any(|o| matches!(o, WeekOption::Month)),
+            nav: vec.iter().any(|o| matches!(o, WeekOption::Nav)),
+            month: vec.iter().any(|o| matches!(o, WeekOption::Month)),
         }
     }
 }
@@ -129,24 +103,11 @@ pub struct MonthOptions {
     pub nav: bool,
 }
 
-impl<T> From<T> for MonthOptions
-where
-    T: IntoIterator<Item = MonthOption>,
+impl From<Vec<MonthOption>> for MonthOptions
 {
-    fn from(iter: T) -> Self {
-        Self::from_iter(iter)
-    }
-}
-
-impl FromIterator<MonthOption> for MonthOptions {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = MonthOption>,
-    {
-        let mut iter = iter.into_iter();
-
+    fn from(vec: Vec<MonthOption>) -> Self {
         Self {
-            nav: iter.any(|o| matches!(o, MonthOption::Nav)),
+            nav: vec.iter().any(|o| matches!(o, MonthOption::Nav)),
         }
     }
 }
@@ -163,24 +124,11 @@ pub struct YearOptions {
     pub nav: bool,
 }
 
-impl<T> From<T> for YearOptions
-where
-    T: IntoIterator<Item = YearOption>,
+impl From<Vec<YearOption>> for YearOptions
 {
-    fn from(iter: T) -> Self {
-        Self::from_iter(iter)
-    }
-}
-
-impl FromIterator<YearOption> for YearOptions {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = YearOption>,
-    {
-        let mut iter = iter.into_iter();
-
+    fn from(vec: Vec<YearOption>) -> Self {
         Self {
-            nav: iter.any(|o| matches!(o, YearOption::Nav)),
+            nav: vec.iter().any(|o| matches!(o, YearOption::Nav)),
         }
     }
 }
