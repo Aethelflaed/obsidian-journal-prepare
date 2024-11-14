@@ -166,6 +166,8 @@ impl Preparer {
         let path = self.page_path(year.to_journal_path_name());
         let mut page = Page::new(&path);
 
+        page.push_metadata(Filters::default().push(year.to_string(), false));
+
         if self.year_options.nav {
             page.push_metadata(year.next().to_link().to_metadata("next"));
             page.push_metadata(year.prev().to_link().to_metadata("prev"));
