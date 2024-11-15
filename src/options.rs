@@ -55,8 +55,7 @@ pub struct DayOptions {
     pub month: bool,
 }
 
-impl From<Vec<DayOption>> for DayOptions
-{
+impl From<Vec<DayOption>> for DayOptions {
     fn from(vec: Vec<DayOption>) -> Self {
         Self {
             day: vec.iter().any(|o| matches!(o, DayOption::Day)),
@@ -81,8 +80,7 @@ pub struct WeekOptions {
     pub month: bool,
 }
 
-impl From<Vec<WeekOption>> for WeekOptions
-{
+impl From<Vec<WeekOption>> for WeekOptions {
     fn from(vec: Vec<WeekOption>) -> Self {
         Self {
             nav: vec.iter().any(|o| matches!(o, WeekOption::Nav)),
@@ -103,8 +101,7 @@ pub struct MonthOptions {
     pub nav: bool,
 }
 
-impl From<Vec<MonthOption>> for MonthOptions
-{
+impl From<Vec<MonthOption>> for MonthOptions {
     fn from(vec: Vec<MonthOption>) -> Self {
         Self {
             nav: vec.iter().any(|o| matches!(o, MonthOption::Nav)),
@@ -124,8 +121,7 @@ pub struct YearOptions {
     pub nav: bool,
 }
 
-impl From<Vec<YearOption>> for YearOptions
-{
+impl From<Vec<YearOption>> for YearOptions {
     fn from(vec: Vec<YearOption>) -> Self {
         Self {
             nav: vec.iter().any(|o| matches!(o, YearOption::Nav)),

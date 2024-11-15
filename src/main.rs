@@ -17,8 +17,8 @@ mod utils;
 use utils::{JournalName, ToEmbedded, ToLink};
 
 fn main() -> Result<()> {
-    use clap::Parser;
     use clap::error::ErrorKind::*;
+    use clap::Parser;
 
     let cli = match options::Cli::try_parse_from(std::env::args_os()) {
         Ok(cli) => cli,
@@ -30,7 +30,7 @@ fn main() -> Result<()> {
             _ => {
                 return Err(e.into());
             }
-        }
+        },
     };
 
     setup_log(cli.verbose.log_level_filter())?;
@@ -164,140 +164,129 @@ impl Preparer {
     }
 
     fn print_year(&self, year: Year) -> Result<()> {
-        let path = self.page_path(year.to_journal_path_name());
-        let mut page = Page::new(&path);
+        self.update_page(self.page_path(year.to_journal_path_name()), |mut page| {
+            page.push_metadata(Filters::default().push(year.to_string(), false));
 
-        page.push_metadata(Filters::default().push(year.to_string(), false));
-
-        if self.year_options.nav {
-            page.push_metadata(year.next().to_link().to_metadata("next"));
-            page.push_metadata(year.prev().to_link().to_metadata("prev"));
-        }
-
-        let first = year.first();
-        let last = year.last();
-
-        let mut month = first;
-        loop {
-            page.push_content(month.to_link());
-
-            month = month + Months::new(1);
-            if month > last {
-                break;
+            if self.year_options.nav {
+                page.push_metadata(year.next().to_link().to_metadata("next"));
+                page.push_metadata(year.prev().to_link().to_metadata("prev"));
             }
-        }
 
-        if path.exists() {
-            page = Page::try_from(path.as_path())? + page;
-        }
+            let first = year.first();
+            let last = year.last();
 
-        page.write()?;
+            let mut month = first;
+            loop {
+                page.push_content(month.to_link());
 
-        log::info!("year: {}", path.display());
-        Ok(())
+                month = month + Months::new(1);
+                if month > last {
+                    break;
+                }
+            }
+
+            Ok(page)
+        })
     }
 
     fn print_month(&self, month: Month) -> Result<()> {
-        let path = self.page_path(month.to_journal_path_name());
-        let mut page = Page::new(&path);
+        self.update_page(self.page_path(month.to_journal_path_name()), |mut page| {
+            let first = month.first();
+            let last = month.last();
 
-        let first = month.first();
-        let last = month.last();
+            page.push_metadata(Filters::default().push("month", false));
 
-        page.push_metadata(Filters::default().push("month", false));
-
-        if self.month_options.nav {
-            page.push_metadata(month.next().to_link().to_metadata("next"));
-            page.push_metadata(month.prev().to_link().to_metadata("prev"));
-        }
-
-        let mut date = first;
-        loop {
-            page.push_content(date.to_link().into_embedded());
-
-            date = date + Days::new(1);
-            if date > last {
-                break;
+            if self.month_options.nav {
+                page.push_metadata(month.next().to_link().to_metadata("next"));
+                page.push_metadata(month.prev().to_link().to_metadata("prev"));
             }
-        }
 
-        if path.exists() {
-            page = Page::try_from(path.as_path())? + page;
-        }
+            let mut date = first;
+            loop {
+                page.push_content(date.to_link().into_embedded());
 
-        page.write()?;
+                date = date + Days::new(1);
+                if date > last {
+                    break;
+                }
+            }
 
-        log::info!("month: {}", path.display());
-        Ok(())
+            Ok(page)
+        })
     }
 
     fn print_week(&self, week: IsoWeek) -> Result<()> {
-        let path = self.page_path(week.to_journal_path_name());
-        let mut page = Page::new(&path);
+        self.update_page(self.page_path(week.to_journal_path_name()), |mut page| {
+            let first = week.first();
+            let last = week.last();
 
-        let first = week.first();
-        let last = week.last();
+            page.push_metadata(Filters::default().push("week", false).push("month", false));
 
-        page.push_metadata(Filters::default().push("week", false).push("month", false));
-
-        if self.week_options.month {
-            page.push_metadata(Month::from(first).to_link().to_metadata("month"));
-        }
-        if self.week_options.nav {
-            page.push_metadata(week.next().to_link().to_metadata("next"));
-            page.push_metadata(week.prev().to_link().to_metadata("prev"));
-        }
-
-        let mut date = first;
-        loop {
-            page.push_content(date.to_link().into_embedded());
-
-            date = date + Days::new(1);
-            if date > last {
-                break;
+            if self.week_options.month {
+                page.push_metadata(Month::from(first).to_link().to_metadata("month"));
             }
-        }
+            if self.week_options.nav {
+                page.push_metadata(week.next().to_link().to_metadata("next"));
+                page.push_metadata(week.prev().to_link().to_metadata("prev"));
+            }
 
-        if path.exists() {
-            page = Page::try_from(path.as_path())? + page;
-        }
+            let mut date = first;
+            loop {
+                page.push_content(date.to_link().into_embedded());
 
-        page.write()?;
+                date = date + Days::new(1);
+                if date > last {
+                    break;
+                }
+            }
 
-        log::info!("week: {}", path.display());
-        Ok(())
+            Ok(page)
+        })
     }
 
     fn print_date(&self, date: NaiveDate) -> Result<()> {
-        let path = self.journal_path(date.to_journal_path_name());
-        let mut page = Page::new(&path);
+        self.update_page(
+            self.journal_path(date.to_journal_path_name()),
+            |mut page| {
+                page.push_metadata(
+                    Filters::default()
+                        .push(date.iso_week().to_journal_name(), false)
+                        .push(Month::from(date).to_journal_name(), false),
+                );
 
-        page.push_metadata(
-            Filters::default()
-                .push(date.iso_week().to_journal_name(), false)
-                .push(Month::from(date).to_journal_name(), false),
-        );
+                if self.day_options.day {
+                    let day = match date.weekday() {
+                        Weekday::Mon => "Monday",
+                        Weekday::Tue => "Tuesday",
+                        Weekday::Wed => "Wednesday",
+                        Weekday::Thu => "Thursday",
+                        Weekday::Fri => "Friday",
+                        Weekday::Sat => "Saturday",
+                        Weekday::Sun => "Sunday",
+                    };
 
-        if self.day_options.day {
-            let day = match date.weekday() {
-                Weekday::Mon => "Monday",
-                Weekday::Tue => "Tuesday",
-                Weekday::Wed => "Wednesday",
-                Weekday::Thu => "Thursday",
-                Weekday::Fri => "Friday",
-                Weekday::Sat => "Saturday",
-                Weekday::Sun => "Sunday",
-            };
+                    page.push_metadata(day.to_metadata("day"));
+                }
 
-            page.push_metadata(day.to_metadata("day"));
-        }
+                if self.day_options.week {
+                    page.push_metadata(date.iso_week().to_link().to_metadata("week"));
+                }
+                if self.day_options.month {
+                    page.push_metadata(Month::from(date).to_link().to_metadata("month"));
+                }
 
-        if self.day_options.week {
-            page.push_metadata(date.iso_week().to_link().to_metadata("week"));
-        }
-        if self.day_options.month {
-            page.push_metadata(Month::from(date).to_link().to_metadata("month"));
-        }
+                Ok(page)
+            },
+        )
+    }
+
+    fn update_page<F>(&self, path: PathBuf, f: F) -> Result<()>
+    where
+        F: FnOnce(Page) -> Result<Page>,
+    {
+        log::info!("Updating page {}", path.display());
+
+        let mut page = f(Page::new(&path))?;
 
         if path.exists() {
             page = Page::try_from(path.as_path())? + page;
@@ -305,7 +294,6 @@ impl Preparer {
 
         page.write()?;
 
-        log::info!("day: {}", path.display());
         Ok(())
     }
 
