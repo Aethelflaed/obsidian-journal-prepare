@@ -28,6 +28,11 @@ impl From<NaiveDate> for Month {
         }
     }
 }
+impl From<IsoWeek> for Month {
+    fn from(week: IsoWeek) -> Self {
+        Self::from(week.first())
+    }
+}
 impl std::ops::Add<Months> for Month {
     type Output = Self;
 

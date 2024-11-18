@@ -223,7 +223,7 @@ impl Preparer {
             page.push_metadata(Filters::default().push("week", false).push("month", false));
 
             if self.week_options.month {
-                page.push_metadata(Month::from(first).to_link().to_metadata("month"));
+                page.push_metadata(Month::from(week).to_link().to_metadata("month"));
             }
             if self.week_options.nav {
                 page.push_metadata(week.next().to_link().to_metadata("next"));
