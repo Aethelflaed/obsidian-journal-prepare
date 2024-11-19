@@ -172,17 +172,8 @@ impl Preparer {
                 page.push_metadata(year.prev().to_link().to_metadata("prev"));
             }
 
-            let first = year.first();
-            let last = year.last();
-
-            let mut month = first;
-            loop {
+            for month in year.iter() {
                 page.push_content(month.to_link());
-
-                month = month + Months::new(1);
-                if month > last {
-                    break;
-                }
             }
 
             Ok(page)
@@ -191,9 +182,6 @@ impl Preparer {
 
     fn print_month(&self, month: Month) -> Result<()> {
         self.update_page(self.page_path(month.to_journal_path_name()), |mut page| {
-            let first = month.first();
-            let last = month.last();
-
             page.push_metadata(Filters::default().push("month", false));
 
             if self.month_options.nav {
@@ -201,14 +189,8 @@ impl Preparer {
                 page.push_metadata(month.prev().to_link().to_metadata("prev"));
             }
 
-            let mut date = first;
-            loop {
+            for date in month.iter() {
                 page.push_content(date.to_link().into_embedded());
-
-                date = date + Days::new(1);
-                if date > last {
-                    break;
-                }
             }
 
             Ok(page)
@@ -217,9 +199,6 @@ impl Preparer {
 
     fn print_week(&self, week: IsoWeek) -> Result<()> {
         self.update_page(self.page_path(week.to_journal_path_name()), |mut page| {
-            let first = week.first();
-            let last = week.last();
-
             page.push_metadata(Filters::default().push("week", false).push("month", false));
 
             if self.week_options.month {
@@ -230,14 +209,8 @@ impl Preparer {
                 page.push_metadata(week.prev().to_link().to_metadata("prev"));
             }
 
-            let mut date = first;
-            loop {
+            for date in week.iter() {
                 page.push_content(date.to_link().into_embedded());
-
-                date = date + Days::new(1);
-                if date > last {
-                    break;
-                }
             }
 
             Ok(page)

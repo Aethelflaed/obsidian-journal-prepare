@@ -63,7 +63,18 @@ pub trait DateRange {
 
     fn first(&self) -> Self::Element;
     fn last(&self) -> Self::Element;
+
+    fn iter<'a>(&'a self) -> DateIterator<'a, Self, Self::Element>
+    where
+        Self::Element: Navigation + std::cmp::PartialOrd + Clone,
+    {
+        DateIterator {
+            range: self,
+            current: None,
+        }
+    }
 }
+
 impl DateRange for IsoWeek {
     type Element = NaiveDate;
 
@@ -139,6 +150,37 @@ impl Navigation for IsoWeek {
     }
     fn prev(&self) -> Self {
         (self.first() - Days::new(1)).iso_week()
+    }
+}
+
+pub struct DateIterator<'a, T, U>
+where
+    T: DateRange<Element = U> + ?Sized,
+    U: Navigation + std::cmp::PartialOrd + Clone,
+{
+    range: &'a T,
+    current: Option<U>,
+}
+
+impl<T, U> Iterator for DateIterator<'_, T, U>
+where
+    T: DateRange<Element = U>,
+    U: Navigation + std::cmp::PartialOrd + Clone,
+{
+    type Item = U;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &self.current {
+            None => {
+                self.current = Some(self.range.first());
+                return self.current.clone();
+            },
+            Some(value) if *value < self.range.last() => {
+                self.current = Some(value.next());
+                return self.current.clone();
+            },
+            _ => None,
+        }
     }
 }
 
@@ -252,6 +294,28 @@ mod tests {
                 year.last(),
                 NaiveDate::from_ymd_opt(2024, 12, 1).unwrap().into()
             );
+        }
+    }
+
+    mod date_iterator {
+        use super::*;
+
+        #[test]
+        fn week() {
+            let week = NaiveDate::from_ymd_opt(2024, 9, 24).unwrap().iso_week();
+            assert_eq!(7, week.iter().count());
+        }
+
+        #[test]
+        fn month() {
+            let month = Month::from(NaiveDate::from_ymd_opt(2024, 2, 5).unwrap());
+            assert_eq!(29, month.iter().count());
+        }
+
+        #[test]
+        fn year() {
+            let year = Year::from(2024);
+            assert_eq!(12, year.iter().count());
         }
     }
 }
