@@ -161,7 +161,7 @@ mod tests {
 
         file.write_str(
             formatdoc!(
-            "
+                "
             {metadata}
             {content}"
             )

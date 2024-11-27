@@ -64,7 +64,7 @@ pub trait DateRange {
     fn first(&self) -> Self::Element;
     fn last(&self) -> Self::Element;
 
-    fn iter<'a>(&'a self) -> DateIterator<'a, Self, Self::Element>
+    fn iter(&self) -> DateIterator<'_, Self, Self::Element>
     where
         Self::Element: Navigation + std::cmp::PartialOrd + Clone,
     {
@@ -162,6 +162,13 @@ where
     current: Option<U>,
 }
 
+impl<T, U> std::iter::FusedIterator for DateIterator<'_, T, U>
+where
+    T: DateRange<Element = U>,
+    U: Navigation + std::cmp::PartialOrd + Clone,
+{
+}
+
 impl<T, U> Iterator for DateIterator<'_, T, U>
 where
     T: DateRange<Element = U>,
@@ -173,12 +180,12 @@ where
         match &self.current {
             None => {
                 self.current = Some(self.range.first());
-                return self.current.clone();
-            },
+                self.current.clone()
+            }
             Some(value) if *value < self.range.last() => {
                 self.current = Some(value.next());
-                return self.current.clone();
-            },
+                self.current.clone()
+            }
             _ => None,
         }
     }
