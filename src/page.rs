@@ -71,12 +71,10 @@ impl Display for PageContent {
         }
         writeln!(f)?;
 
-        let mut first_content = true;
-        for line in &self.content {
-            if first_content && line != "-" {
+        for (index, line) in self.content.iter().enumerate() {
+            if index == 0 && line != "-" {
                 writeln!(f, "-")?;
             }
-            first_content = false;
 
             writeln!(f, "{}", line)?;
         }
