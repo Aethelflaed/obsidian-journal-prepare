@@ -55,6 +55,12 @@ pub struct DayOptions {
     pub month: bool,
 }
 
+impl DayOptions {
+    pub fn none(&self) -> bool {
+        !( self.day || self.week || self.month )
+    }
+}
+
 impl From<Vec<DayOption>> for DayOptions {
     fn from(vec: Vec<DayOption>) -> Self {
         Self {
@@ -80,6 +86,12 @@ pub struct WeekOptions {
     pub month: bool,
 }
 
+impl WeekOptions {
+    pub fn none(&self) -> bool {
+        !( self.nav || self.month )
+    }
+}
+
 impl From<Vec<WeekOption>> for WeekOptions {
     fn from(vec: Vec<WeekOption>) -> Self {
         Self {
@@ -101,6 +113,12 @@ pub struct MonthOptions {
     pub nav: bool,
 }
 
+impl MonthOptions {
+    pub fn none(&self) -> bool {
+        !self.nav
+    }
+}
+
 impl From<Vec<MonthOption>> for MonthOptions {
     fn from(vec: Vec<MonthOption>) -> Self {
         Self {
@@ -119,6 +137,12 @@ pub enum YearOption {
 #[display("Year options: {{ navigation links: {nav} }}")]
 pub struct YearOptions {
     pub nav: bool,
+}
+
+impl YearOptions {
+    pub fn none(&self) -> bool {
+        !self.nav
+    }
 }
 
 impl From<Vec<YearOption>> for YearOptions {

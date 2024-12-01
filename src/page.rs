@@ -9,7 +9,7 @@ use std::str::FromStr;
 #[derive(Debug)]
 pub struct Page {
     path: PathBuf,
-    content: PageContent,
+    content: Content,
 }
 
 impl Page {
@@ -28,6 +28,7 @@ impl Page {
 
     pub fn push_content<C: Display>(&mut self, content: C) {
         self.content.content.push(format!("- {}", content))
+
     }
 
     pub fn push_metadata<M: Into<Metadata>>(&mut self, metadata: M) {
@@ -59,12 +60,12 @@ impl Add for Page {
 }
 
 #[derive(Debug, Default)]
-pub struct PageContent {
+pub struct Content {
     metadata: Vec<Metadata>,
     content: Vec<String>,
 }
 
-impl Display for PageContent {
+impl Display for Content {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for line in &self.metadata {
             writeln!(f, "{}", line)?;
@@ -82,11 +83,11 @@ impl Display for PageContent {
     }
 }
 
-impl FromStr for PageContent {
+impl FromStr for Content {
     type Err = anyhow::Error;
 
     fn from_str(string: &str) -> Result<Self> {
-        let mut page = PageContent::default();
+        let mut page = Content::default();
         let mut read_content = false;
         let mut content = String::new();
 
@@ -98,7 +99,7 @@ impl FromStr for PageContent {
                 } else if !line.is_empty() {
                     page.metadata.push(line.parse()?);
                 }
-            } else if line.starts_with("-") {
+            } else if line.starts_with("- ") {
                 page.content.push(content);
                 content = line.to_owned();
             } else {
@@ -114,10 +115,10 @@ impl FromStr for PageContent {
     }
 }
 
-impl Add for PageContent {
-    type Output = PageContent;
+impl Add for Content {
+    type Output = Content;
 
-    fn add(mut self, rhs: PageContent) -> Self::Output {
+    fn add(mut self, rhs: Content) -> Self::Output {
         for line in rhs.metadata {
             if let Some(metadata) = self.metadata.iter_mut().find(|l| l.key == line.key) {
                 metadata.update(line);
