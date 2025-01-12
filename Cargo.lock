@@ -427,22 +427,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
-name = "logseq-journal-prepare"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert_fs",
- "chrono",
- "clap",
- "clap-verbosity-flag",
- "derive_more",
- "env_logger",
- "indoc",
- "log",
- "systemd-journal-logger",
-]
-
-[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -455,6 +439,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "obsidian-journal-prepare"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_fs",
+ "chrono",
+ "clap",
+ "clap-verbosity-flag",
+ "derive_more",
+ "env_logger",
+ "indoc",
+ "log",
+ "systemd-journal-logger",
 ]
 
 [[package]]
