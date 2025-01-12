@@ -1,12 +1,13 @@
+use crate::page::Page;
+use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::path::PathBuf;
 
-#[derive(derive_more::Debug)]
-#[debug("Vault({path:?}, {journal_path:?})")]
+#[derive(Debug)]
 pub struct Vault {
     path: PathBuf,
-    journal_path: Option<PathBuf>,
+    journals_folder: Option<String>,
 }
 
 impl Vault {
@@ -17,7 +18,7 @@ impl Vault {
         }
         let mut vault = Vault {
             path,
-            journal_path: None,
+            journals_folder: None,
         };
 
         let daily_notes_config = vault.path.join(".obsidian").join("daily-notes.json");
@@ -38,21 +39,47 @@ impl Vault {
             )
         })?;
         if let Some(folder) = config["folder"].as_str() {
-            vault.journal_path = Some(vault.path.join(folder));
+            vault.journals_folder = Some(folder.to_owned());
         }
 
         Ok(vault)
     }
 
-    pub fn page_path<T: std::fmt::Display>(&self, name: T) -> PathBuf {
-        self.path.join(format!("{}.md", name))
+    pub fn page_path<T: ToPageName>(&self, object: T) -> String {
+        let PageName { name, kind } = object.to_page_name();
+        match kind {
+            PageKind::Journal => {
+                if let Some(journals_folder) = self.journals_folder.clone() {
+                    journals_folder + name.as_str()
+                } else {
+                    name
+                }
+            }
+            PageKind::Default => name,
+        }
     }
 
-    pub fn journal_path<T: std::fmt::Display>(&self, name: T) -> PathBuf {
-        self.journal_path
-            .as_deref()
-            .unwrap_or(self.path.as_path())
-            .join(format!("{}.md", name))
+    pub fn page_file_path<T: ToPageName>(&self, page: T) -> PathBuf {
+        self.path.join(format!("{}.md", self.page_path(page)))
+    }
+
+    pub fn update<F, T>(&self, page: T, f: F) -> Result<()>
+    where
+        T: ToPageName,
+        F: FnOnce(Page) -> Result<Page>,
+    {
+        let path = self.page_file_path(page);
+        log::info!("Updating page {}", path.display());
+
+        let mut page = f(Page::new(&path))?;
+
+        if path.exists() {
+            page = Page::try_from(path.as_path())? + page;
+        }
+
+        page.write()?;
+
+        Ok(())
     }
 }
 
@@ -67,8 +94,36 @@ mod tests {
         let vault = Vault::new(temp_dir.path().to_path_buf())?;
 
         assert_eq!(temp_dir.path(), vault.path);
-        assert_eq!(temp_dir.child("page.md").path(), vault.page_path("page"));
-        assert_eq!(temp_dir.child("page.md").path(), vault.journal_path("page"));
+
+        assert_eq!(
+            "page",
+            vault.page_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Default
+            })
+        );
+        assert_eq!(
+            "page",
+            vault.page_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Journal
+            })
+        );
+
+        assert_eq!(
+            temp_dir.child("page.md").path(),
+            vault.page_file_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Default
+            })
+        );
+        assert_eq!(
+            temp_dir.child("page.md").path(),
+            vault.page_file_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Journal
+            })
+        );
 
         Ok(())
     }
@@ -102,10 +157,19 @@ mod tests {
 
         let vault = Vault::new(temp_dir.path().to_path_buf())?;
         assert_eq!(
-            temp_dir.child("daily-notes/page.md").path(),
-            vault.journal_path("page")
+            "daily-notes/page",
+            vault.page_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Journal
+            })
         );
-
+        assert_eq!(
+            temp_dir.child("daily-notes/page.md").path(),
+            vault.page_file_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Journal
+            })
+        );
         Ok(())
     }
 }

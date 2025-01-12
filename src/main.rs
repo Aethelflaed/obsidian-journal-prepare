@@ -1,11 +1,9 @@
 use anyhow::Result;
 use chrono::{Datelike, Days, IsoWeek, Months, NaiveDate, Utc, Weekday};
-use std::path::PathBuf;
 
 mod options;
 
 mod page;
-use page::Page;
 
 mod date_utils;
 use date_utils::{DateRange, Month, Navigation, Year};
@@ -14,7 +12,7 @@ mod metadata;
 use metadata::ToMetadata;
 
 mod utils;
-use utils::{JournalName, ToEmbedded, ToLink};
+use utils::{ToEmbedded, ToLink};
 
 mod vault;
 use vault::Vault;
@@ -181,14 +179,14 @@ impl Preparer {
             return Ok(());
         }
 
-        self.update_page(self.vault.page_path(year.to_journal_name()), |mut page| {
+        self.vault.update(year, |mut page| {
             if self.year_options.nav {
-                page.push_metadata(year.next().to_link().to_metadata("next"));
-                page.push_metadata(year.prev().to_link().to_metadata("prev"));
+                page.push_metadata(year.next().to_link(&self.vault).to_metadata("next"));
+                page.push_metadata(year.prev().to_link(&self.vault).to_metadata("prev"));
             }
 
             for month in year.iter() {
-                page.push_content(month.to_link());
+                page.push_content(month.to_link(&self.vault));
             }
 
             Ok(page)
@@ -200,20 +198,20 @@ impl Preparer {
             return Ok(());
         }
 
-        self.update_page(self.vault.page_path(month.to_journal_name()), |mut page| {
+        self.vault.update(month, |mut page| {
             if self.month_options.nav {
-                page.push_metadata(month.next().to_link().to_metadata("next"));
-                page.push_metadata(month.prev().to_link().to_metadata("prev"));
+                page.push_metadata(month.next().to_link(&self.vault).to_metadata("next"));
+                page.push_metadata(month.prev().to_link(&self.vault).to_metadata("prev"));
             }
 
             for (index, date) in month.iter().enumerate() {
                 if index == 0 || date.weekday() == Weekday::Mon {
-                    page.push_content(format!("#### {}", date.iso_week().to_link()));
+                    page.push_content(format!("#### {}", date.iso_week().to_link(&self.vault)));
                 }
                 page.push_content(format!(
                     "- {} {}",
                     weekday(date),
-                    date.to_link().into_embedded()
+                    date.to_link(&self.vault).into_embedded()
                 ));
             }
 
@@ -226,20 +224,20 @@ impl Preparer {
             return Ok(());
         }
 
-        self.update_page(self.vault.page_path(week.to_journal_name()), |mut page| {
+        self.vault.update(week, |mut page| {
             if self.week_options.month {
-                page.push_metadata(Month::from(week).to_link().to_metadata("month"));
+                page.push_metadata(Month::from(week).to_link(&self.vault).to_metadata("month"));
             }
             if self.week_options.nav {
-                page.push_metadata(week.next().to_link().to_metadata("next"));
-                page.push_metadata(week.prev().to_link().to_metadata("prev"));
+                page.push_metadata(week.next().to_link(&self.vault).to_metadata("next"));
+                page.push_metadata(week.prev().to_link(&self.vault).to_metadata("prev"));
             }
 
             for date in week.iter() {
                 page.push_content(format!(
                     "- {} {}",
                     weekday(date),
-                    date.to_link().into_embedded()
+                    date.to_link(&self.vault).into_embedded()
                 ));
             }
 
@@ -252,35 +250,22 @@ impl Preparer {
             return Ok(());
         }
 
-        self.update_page(self.vault.journal_path(date.to_journal_name()), |mut page| {
+        self.vault.update(date, |mut page| {
             if self.day_options.day {
                 page.push_metadata(weekday(date).to_metadata("day"));
             }
             if self.day_options.week {
-                page.push_metadata(date.iso_week().to_link().to_metadata("week"));
+                page.push_metadata(date.iso_week().to_link(&self.vault).to_metadata("week"));
             }
             if self.day_options.month {
-                page.push_metadata(Month::from(date).to_link().to_metadata("month"));
+                page.push_metadata(Month::from(date).to_link(&self.vault).to_metadata("month"));
+            }
+            if self.week_options.nav {
+                page.push_metadata(date.next().to_link(&self.vault).to_metadata("next"));
+                page.push_metadata(date.prev().to_link(&self.vault).to_metadata("prev"));
             }
 
             Ok(page)
         })
-    }
-
-    fn update_page<F>(&self, path: PathBuf, f: F) -> Result<()>
-    where
-        F: FnOnce(Page) -> Result<Page>,
-    {
-        log::info!("Updating page {}", path.display());
-
-        let mut page = f(Page::new(&path))?;
-
-        if path.exists() {
-            page = Page::try_from(path.as_path())? + page;
-        }
-
-        page.write()?;
-
-        Ok(())
     }
 }
