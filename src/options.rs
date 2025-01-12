@@ -45,6 +45,8 @@ pub enum DayOption {
     Week,
     /// Display link to month
     Month,
+    /// Display links to previous and next day
+    Nav,
 }
 
 #[derive(derive_more::Display)]
@@ -53,11 +55,12 @@ pub struct DayOptions {
     pub day: bool,
     pub week: bool,
     pub month: bool,
+    pub nav: bool,
 }
 
 impl DayOptions {
     pub fn none(&self) -> bool {
-        !(self.day || self.week || self.month)
+        !(self.day || self.week || self.month || self.nav)
     }
 }
 
@@ -67,6 +70,7 @@ impl From<Vec<DayOption>> for DayOptions {
             day: vec.iter().any(|o| matches!(o, DayOption::Day)),
             week: vec.iter().any(|o| matches!(o, DayOption::Week)),
             month: vec.iter().any(|o| matches!(o, DayOption::Month)),
+            nav: vec.iter().any(|o| matches!(o, DayOption::Nav)),
         }
     }
 }

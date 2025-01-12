@@ -16,6 +16,9 @@ use metadata::ToMetadata;
 mod utils;
 use utils::{JournalName, ToEmbedded, ToLink};
 
+mod vault;
+use vault::Vault;
+
 fn main() -> Result<()> {
     use clap::error::ErrorKind::*;
     use clap::Parser;
@@ -74,7 +77,7 @@ fn setup_log(level: log::LevelFilter) -> Result<()> {
 struct Preparer {
     pub from: NaiveDate,
     pub to: NaiveDate,
-    pub path: PathBuf,
+    pub vault: Vault,
     pub day_options: options::DayOptions,
     pub week_options: options::WeekOptions,
     pub month_options: options::MonthOptions,
@@ -99,14 +102,16 @@ impl TryFrom<options::Cli> for Preparer {
         let from = from.unwrap_or(Utc::now().date_naive());
         let to = to.unwrap_or(from + Months::new(1));
 
-        if to <= from {
+        if to < from {
             anyhow::bail!("--from {} should be less than --to {}", from, to);
         }
+
+        let vault = Vault::new(path)?;
 
         Ok(Preparer {
             from,
             to,
-            path,
+            vault,
             day_options: day.into(),
             week_options: week.into(),
             month_options: month.into(),
@@ -129,7 +134,7 @@ fn weekday(date: NaiveDate) -> &'static str {
 
 impl Preparer {
     fn run(&self) -> Result<()> {
-        log::debug!("Preparing journal {:?}", self.path.display());
+        log::debug!("Preparing journal {:?}", self.vault);
         log::debug!("from {} to {}", self.from, self.to);
         log::debug!("{}", self.day_options);
         log::debug!("{}", self.week_options);
@@ -146,7 +151,7 @@ impl Preparer {
         self.print_month(month)?;
         self.print_year(year)?;
 
-        loop {
+        while date < self.to {
             date = date + Days::new(1);
             self.print_date(date)?;
 
@@ -167,10 +172,6 @@ impl Preparer {
                 self.print_month(new_month)?;
                 month = new_month;
             }
-
-            if date >= self.to {
-                break;
-            }
         }
         Ok(())
     }
@@ -180,7 +181,7 @@ impl Preparer {
             return Ok(());
         }
 
-        self.update_page(self.page_path(year.to_journal_name()), |mut page| {
+        self.update_page(self.vault.page_path(year.to_journal_name()), |mut page| {
             if self.year_options.nav {
                 page.push_metadata(year.next().to_link().to_metadata("next"));
                 page.push_metadata(year.prev().to_link().to_metadata("prev"));
@@ -199,7 +200,7 @@ impl Preparer {
             return Ok(());
         }
 
-        self.update_page(self.page_path(month.to_journal_name()), |mut page| {
+        self.update_page(self.vault.page_path(month.to_journal_name()), |mut page| {
             if self.month_options.nav {
                 page.push_metadata(month.next().to_link().to_metadata("next"));
                 page.push_metadata(month.prev().to_link().to_metadata("prev"));
@@ -225,7 +226,7 @@ impl Preparer {
             return Ok(());
         }
 
-        self.update_page(self.page_path(week.to_journal_name()), |mut page| {
+        self.update_page(self.vault.page_path(week.to_journal_name()), |mut page| {
             if self.week_options.month {
                 page.push_metadata(Month::from(week).to_link().to_metadata("month"));
             }
@@ -251,7 +252,7 @@ impl Preparer {
             return Ok(());
         }
 
-        self.update_page(self.journal_path(date.to_journal_name()), |mut page| {
+        self.update_page(self.vault.journal_path(date.to_journal_name()), |mut page| {
             if self.day_options.day {
                 page.push_metadata(weekday(date).to_metadata("day"));
             }
@@ -281,13 +282,5 @@ impl Preparer {
         page.write()?;
 
         Ok(())
-    }
-
-    fn page_path(&self, name: String) -> PathBuf {
-        self.path.join(format!("{}.md", name))
-    }
-
-    fn journal_path(&self, name: String) -> PathBuf {
-        self.path.join("journals").join(format!("{}.md", name))
     }
 }
