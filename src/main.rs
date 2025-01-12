@@ -11,7 +11,7 @@ mod date_utils;
 use date_utils::{DateRange, Month, Navigation, Year};
 
 mod metadata;
-use metadata::{Filters, ToMetadata};
+use metadata::ToMetadata;
 
 mod utils;
 use utils::{JournalName, ToEmbedded, ToLink};
@@ -115,6 +115,18 @@ impl TryFrom<options::Cli> for Preparer {
     }
 }
 
+fn weekday(date: NaiveDate) -> &'static str {
+    match date.weekday() {
+        Weekday::Mon => "Monday",
+        Weekday::Tue => "Tuesday",
+        Weekday::Wed => "Wednesday",
+        Weekday::Thu => "Thursday",
+        Weekday::Fri => "Friday",
+        Weekday::Sat => "Saturday",
+        Weekday::Sun => "Sunday",
+    }
+}
+
 impl Preparer {
     fn run(&self) -> Result<()> {
         log::debug!("Preparing journal {:?}", self.path.display());
@@ -164,9 +176,11 @@ impl Preparer {
     }
 
     fn print_year(&self, year: Year) -> Result<()> {
-        self.update_page(self.page_path(year.to_journal_path_name()), |mut page| {
-            page.push_metadata(Filters::default().push(year.to_string(), false));
+        if self.year_options.none() {
+            return Ok(());
+        }
 
+        self.update_page(self.page_path(year.to_journal_name()), |mut page| {
             if self.year_options.nav {
                 page.push_metadata(year.next().to_link().to_metadata("next"));
                 page.push_metadata(year.prev().to_link().to_metadata("prev"));
@@ -181,16 +195,25 @@ impl Preparer {
     }
 
     fn print_month(&self, month: Month) -> Result<()> {
-        self.update_page(self.page_path(month.to_journal_path_name()), |mut page| {
-            page.push_metadata(Filters::default().push("month", false));
+        if self.month_options.none() {
+            return Ok(());
+        }
 
+        self.update_page(self.page_path(month.to_journal_name()), |mut page| {
             if self.month_options.nav {
                 page.push_metadata(month.next().to_link().to_metadata("next"));
                 page.push_metadata(month.prev().to_link().to_metadata("prev"));
             }
 
-            for date in month.iter() {
-                page.push_content(date.to_link().into_embedded());
+            for (index, date) in month.iter().enumerate() {
+                if index == 0 || date.weekday() == Weekday::Mon {
+                    page.push_content(format!("#### {}", date.iso_week().to_link()));
+                }
+                page.push_content(format!(
+                    "- {} {}",
+                    weekday(date),
+                    date.to_link().into_embedded()
+                ));
             }
 
             Ok(page)
@@ -198,9 +221,11 @@ impl Preparer {
     }
 
     fn print_week(&self, week: IsoWeek) -> Result<()> {
-        self.update_page(self.page_path(week.to_journal_path_name()), |mut page| {
-            page.push_metadata(Filters::default().push("week", false).push("month", false));
+        if self.week_options.none() {
+            return Ok(());
+        }
 
+        self.update_page(self.page_path(week.to_journal_name()), |mut page| {
             if self.week_options.month {
                 page.push_metadata(Month::from(week).to_link().to_metadata("month"));
             }
@@ -210,7 +235,11 @@ impl Preparer {
             }
 
             for date in week.iter() {
-                page.push_content(date.to_link().into_embedded());
+                page.push_content(format!(
+                    "- {} {}",
+                    weekday(date),
+                    date.to_link().into_embedded()
+                ));
             }
 
             Ok(page)
@@ -218,39 +247,23 @@ impl Preparer {
     }
 
     fn print_date(&self, date: NaiveDate) -> Result<()> {
-        self.update_page(
-            self.journal_path(date.to_journal_path_name()),
-            |mut page| {
-                page.push_metadata(
-                    Filters::default()
-                        .push(date.iso_week().to_journal_name(), false)
-                        .push(Month::from(date).to_journal_name(), false),
-                );
+        if self.day_options.none() {
+            return Ok(());
+        }
 
-                if self.day_options.day {
-                    let day = match date.weekday() {
-                        Weekday::Mon => "Monday",
-                        Weekday::Tue => "Tuesday",
-                        Weekday::Wed => "Wednesday",
-                        Weekday::Thu => "Thursday",
-                        Weekday::Fri => "Friday",
-                        Weekday::Sat => "Saturday",
-                        Weekday::Sun => "Sunday",
-                    };
+        self.update_page(self.journal_path(date.to_journal_name()), |mut page| {
+            if self.day_options.day {
+                page.push_metadata(weekday(date).to_metadata("day"));
+            }
+            if self.day_options.week {
+                page.push_metadata(date.iso_week().to_link().to_metadata("week"));
+            }
+            if self.day_options.month {
+                page.push_metadata(Month::from(date).to_link().to_metadata("month"));
+            }
 
-                    page.push_metadata(day.to_metadata("day"));
-                }
-
-                if self.day_options.week {
-                    page.push_metadata(date.iso_week().to_link().to_metadata("week"));
-                }
-                if self.day_options.month {
-                    page.push_metadata(Month::from(date).to_link().to_metadata("month"));
-                }
-
-                Ok(page)
-            },
-        )
+            Ok(page)
+        })
     }
 
     fn update_page<F>(&self, path: PathBuf, f: F) -> Result<()>
@@ -271,10 +284,10 @@ impl Preparer {
     }
 
     fn page_path(&self, name: String) -> PathBuf {
-        self.path.join("pages").join(name)
+        self.path.join(format!("{}.md", name))
     }
 
     fn journal_path(&self, name: String) -> PathBuf {
-        self.path.join("journals").join(name)
+        self.path.join("journals").join(format!("{}.md", name))
     }
 }

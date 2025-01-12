@@ -8,7 +8,7 @@ pub struct Cli {
     #[clap(flatten)]
     pub verbose: clap_verbosity_flag::Verbosity,
 
-    /// Path to logseq graph
+    /// Path to notes
     #[arg(short, long)]
     pub path: PathBuf,
 
@@ -57,7 +57,7 @@ pub struct DayOptions {
 
 impl DayOptions {
     pub fn none(&self) -> bool {
-        !( self.day || self.week || self.month )
+        !(self.day || self.week || self.month)
     }
 }
 
@@ -88,7 +88,7 @@ pub struct WeekOptions {
 
 impl WeekOptions {
     pub fn none(&self) -> bool {
-        !( self.nav || self.month )
+        !(self.nav || self.month)
     }
 }
 
