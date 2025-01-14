@@ -50,7 +50,9 @@ pub enum DayOption {
 }
 
 #[derive(derive_more::Display)]
-#[display("Day options: {{ day of week: {day}, week: {week}, month: {month}, navigation links: {nav} }}")]
+#[display(
+    "Day options: {{ day of week: {day}, week: {week}, month: {month}, navigation links: {nav} }}"
+)]
 pub struct DayOptions {
     pub day: bool,
     pub week: bool,

@@ -36,7 +36,9 @@ impl Page {
     }
 
     pub fn push_content<C: Display>(&mut self, content: C) {
-        self.content.content.push(format!("{}", content))
+        self.content
+            .content
+            .push(Entry::Line(format!("{}", content)))
     }
 
     pub fn push_metadata<M: Into<Metadata>>(&mut self, metadata: M) {
@@ -70,7 +72,21 @@ impl Add for Page {
 #[derive(Debug, Default)]
 pub struct Content {
     metadata: Vec<Metadata>,
-    content: Vec<String>,
+    content: Vec<Entry>,
+}
+
+#[derive(Debug, derive_more::Display, PartialEq)]
+#[display("{_variant}")]
+pub enum Entry {
+    Line(String),
+    CodeBlock(CodeBlock),
+}
+
+#[derive(Debug, derive_more::Display, PartialEq)]
+#[display("```{kind}\n{code}\n```")]
+pub struct CodeBlock {
+    kind: String,
+    code: String,
 }
 
 impl Display for Content {
@@ -81,7 +97,7 @@ impl Display for Content {
         }
         writeln!(f, "---")?;
 
-        if let Some(line) = self.content.first() {
+        if let Some(Entry::Line(line)) = self.content.first() {
             if !line.is_empty() {
                 writeln!(f)?;
             }
@@ -99,23 +115,34 @@ impl FromStr for Content {
 
     fn from_str(string: &str) -> Result<Self> {
         let mut page = Content::default();
-        let mut read_content = false;
-        let mut read_metadata = false;
+        let mut lines = string.lines().peekable();
 
-        for line in string.lines() {
-            if !read_metadata && !read_content {
+        if let Some(_) = lines.next_if_eq(&"---") {
+            while let Some(line) = lines.next() {
                 if line == "---" {
-                    read_metadata = true;
-                }
-            } else if read_metadata {
-                if line == "---" {
-                    read_content = true;
-                    read_metadata = false;
+                    break;
                 } else {
                     page.metadata.push(line.parse()?);
                 }
+            }
+        }
+
+        while let Some(line) = lines.next() {
+            if let Some(kind) = line.strip_prefix("```") {
+                let mut code = String::new();
+                while let Some(line) = lines.next() {
+                    if line == "```" {
+                        break;
+                    } else {
+                        code += line;
+                    }
+                }
+                page.content.push(Entry::CodeBlock(CodeBlock {
+                    kind: kind.to_owned(),
+                    code,
+                }));
             } else {
-                page.content.push(line.to_owned())
+                page.content.push(Entry::Line(line.to_owned()));
             }
         }
 
@@ -207,6 +234,35 @@ mod tests {
             - One other thing
             - DONE Something else
         "#});
+
+        Ok(())
+    }
+
+    #[test]
+    fn codeblocks() -> anyhow::Result<()> {
+        let temp_dir = assert_fs::TempDir::new()?;
+        let file = temp_dir.child("page.md");
+
+        let raw_content = indoc! {r#"
+            ---
+            foo: "bar"
+            ---
+            ```toml
+            value = "test"
+            ```
+            Hello World
+        "#};
+
+        file.write_str(raw_content)?;
+        let page: Page = file.path().try_into()?;
+
+        assert!(matches!(page.content.content.first(), Some(Entry::CodeBlock(_))));
+        if let Some(Entry::CodeBlock(code_block)) = page.content.content.first() {
+            assert_eq!("toml", code_block.kind);
+            assert_eq!(r#"value = "test""#, code_block.code);
+        }
+
+        assert_eq!(raw_content, format!("{}", page.content).as_str());
 
         Ok(())
     }
