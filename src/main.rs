@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::{Datelike, Days, IsoWeek, Months, NaiveDate, Utc, Weekday};
 
 mod options;
+use options::{Cli, DayOption, WeekOption, MonthOption, YearOption};
 
 mod page;
 
@@ -21,7 +22,7 @@ fn main() -> Result<()> {
     use clap::error::ErrorKind::*;
     use clap::Parser;
 
-    let cli = match options::Cli::try_parse_from(std::env::args_os()) {
+    let cli = match Cli::try_parse_from(std::env::args_os()) {
         Ok(cli) => cli,
         Err(e) => match e.kind() {
             DisplayHelp | DisplayVersion => {
@@ -76,17 +77,17 @@ struct Preparer {
     pub from: NaiveDate,
     pub to: NaiveDate,
     pub vault: Vault,
-    pub day_options: options::DayOptions,
-    pub week_options: options::WeekOptions,
-    pub month_options: options::MonthOptions,
-    pub year_options: options::YearOptions,
+    pub day_options: Vec<DayOption>,
+    pub week_options: Vec<WeekOption>,
+    pub month_options: Vec<MonthOption>,
+    pub year_options: Vec<YearOption>,
 }
 
-impl TryFrom<options::Cli> for Preparer {
+impl TryFrom<Cli> for Preparer {
     type Error = anyhow::Error;
 
     fn try_from(
-        options::Cli {
+        Cli {
             to,
             from,
             path,
@@ -95,7 +96,7 @@ impl TryFrom<options::Cli> for Preparer {
             month,
             year,
             ..
-        }: options::Cli,
+        }: Cli,
     ) -> Result<Self> {
         let from = from.unwrap_or(Utc::now().date_naive());
         let to = to.unwrap_or(from + Months::new(1));
@@ -110,10 +111,10 @@ impl TryFrom<options::Cli> for Preparer {
             from,
             to,
             vault,
-            day_options: day.into(),
-            week_options: week.into(),
-            month_options: month.into(),
-            year_options: year.into(),
+            day_options: day,
+            week_options: week,
+            month_options: month,
+            year_options: year,
         })
     }
 }
@@ -134,10 +135,10 @@ impl Preparer {
     fn run(&self) -> Result<()> {
         log::debug!("Preparing journal {:?}", self.vault);
         log::debug!("from {} to {}", self.from, self.to);
-        log::debug!("{}", self.day_options);
-        log::debug!("{}", self.week_options);
-        log::debug!("{}", self.month_options);
-        log::debug!("{}", self.year_options);
+        log::debug!("Day options {:?}", self.day_options);
+        log::debug!("Week options {:?}", self.week_options);
+        log::debug!("Month options {:?}", self.month_options);
+        log::debug!("Year options {:?}", self.year_options);
 
         let mut date: NaiveDate = self.from;
         let mut year = Year::from(date.year());
@@ -175,14 +176,14 @@ impl Preparer {
     }
 
     fn print_year(&self, year: Year) -> Result<()> {
-        if self.year_options.none() {
-            return Ok(());
-        }
-
         self.vault.update(year, |mut page| {
-            if self.year_options.nav {
-                page.push_metadata(year.next().to_link(&self.vault).to_metadata("next"));
-                page.push_metadata(year.prev().to_link(&self.vault).to_metadata("prev"));
+            for option in &self.year_options {
+                match option {
+                    YearOption::Nav => {
+                        page.push_metadata(year.next().to_link(&self.vault).to_metadata("next"));
+                        page.push_metadata(year.prev().to_link(&self.vault).to_metadata("prev"));
+                    }
+                }
             }
 
             for month in year.iter() {
@@ -194,14 +195,14 @@ impl Preparer {
     }
 
     fn print_month(&self, month: Month) -> Result<()> {
-        if self.month_options.none() {
-            return Ok(());
-        }
-
         self.vault.update(month, |mut page| {
-            if self.month_options.nav {
-                page.push_metadata(month.next().to_link(&self.vault).to_metadata("next"));
-                page.push_metadata(month.prev().to_link(&self.vault).to_metadata("prev"));
+            for option in &self.month_options {
+                match option {
+                    MonthOption::Nav => {
+                        page.push_metadata(month.next().to_link(&self.vault).to_metadata("next"));
+                        page.push_metadata(month.prev().to_link(&self.vault).to_metadata("prev"));
+                    }
+                }
             }
 
             for (index, date) in month.iter().enumerate() {
@@ -220,17 +221,17 @@ impl Preparer {
     }
 
     fn print_week(&self, week: IsoWeek) -> Result<()> {
-        if self.week_options.none() {
-            return Ok(());
-        }
-
         self.vault.update(week, |mut page| {
-            if self.week_options.month {
-                page.push_metadata(Month::from(week).to_link(&self.vault).to_metadata("month"));
-            }
-            if self.week_options.nav {
-                page.push_metadata(week.next().to_link(&self.vault).to_metadata("next"));
-                page.push_metadata(week.prev().to_link(&self.vault).to_metadata("prev"));
+            for option in &self.week_options {
+                match option {
+                    WeekOption::Month => {
+                        page.push_metadata(Month::from(week).to_link(&self.vault).to_metadata("month"));
+                    }
+                    WeekOption::Nav => {
+                        page.push_metadata(week.next().to_link(&self.vault).to_metadata("next"));
+                        page.push_metadata(week.prev().to_link(&self.vault).to_metadata("prev"));
+                    }
+                }
             }
 
             for date in week.iter() {
@@ -246,23 +247,23 @@ impl Preparer {
     }
 
     fn print_date(&self, date: NaiveDate) -> Result<()> {
-        if self.day_options.none() {
-            return Ok(());
-        }
-
         self.vault.update(date, |mut page| {
-            if self.day_options.day {
-                page.push_metadata(weekday(date).to_metadata("day"));
-            }
-            if self.day_options.week {
-                page.push_metadata(date.iso_week().to_link(&self.vault).to_metadata("week"));
-            }
-            if self.day_options.month {
-                page.push_metadata(Month::from(date).to_link(&self.vault).to_metadata("month"));
-            }
-            if self.week_options.nav {
-                page.push_metadata(date.next().to_link(&self.vault).to_metadata("next"));
-                page.push_metadata(date.prev().to_link(&self.vault).to_metadata("prev"));
+            for option in &self.day_options {
+                match option {
+                    DayOption::Day => {
+                        page.push_metadata(weekday(date).to_metadata("day"));
+                    }
+                    DayOption::Week => {
+                        page.push_metadata(date.iso_week().to_link(&self.vault).to_metadata("week"));
+                    }
+                    DayOption::Month => {
+                        page.push_metadata(Month::from(date).to_link(&self.vault).to_metadata("month"));
+                    }
+                    DayOption::Nav => {
+                        page.push_metadata(date.next().to_link(&self.vault).to_metadata("next"));
+                        page.push_metadata(date.prev().to_link(&self.vault).to_metadata("prev"));
+                    }
+                }
             }
 
             Ok(page)
