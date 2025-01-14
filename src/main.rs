@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{Datelike, Days, IsoWeek, Months, NaiveDate, Utc, Weekday};
 
 mod options;
-use options::{Cli, DayOption, WeekOption, MonthOption, YearOption};
+use options::{Cli, DayOption, MonthOption, WeekOption, YearOption};
 
 mod page;
 
@@ -145,14 +145,14 @@ impl Preparer {
         let mut month = Month::from(date);
         let mut week = date.iso_week();
 
-        self.print_date(date)?;
+        self.print_day(date)?;
         self.print_week(week)?;
         self.print_month(month)?;
         self.print_year(year)?;
 
         while date < self.to {
             date = date + Days::new(1);
-            self.print_date(date)?;
+            self.print_day(date)?;
 
             let new_week = date.iso_week();
             if week != new_week {
@@ -176,6 +176,10 @@ impl Preparer {
     }
 
     fn print_year(&self, year: Year) -> Result<()> {
+        if self.year_options.is_empty() {
+            return Ok(());
+        }
+
         self.vault.update(year, |mut page| {
             for option in &self.year_options {
                 match option {
@@ -183,11 +187,12 @@ impl Preparer {
                         page.push_metadata(year.next().to_link(&self.vault).to_metadata("next"));
                         page.push_metadata(year.prev().to_link(&self.vault).to_metadata("prev"));
                     }
+                    YearOption::Month => {
+                        for month in year.iter() {
+                            page.push_content(month.to_link(&self.vault));
+                        }
+                    }
                 }
-            }
-
-            for month in year.iter() {
-                page.push_content(month.to_link(&self.vault));
             }
 
             Ok(page)
@@ -195,6 +200,10 @@ impl Preparer {
     }
 
     fn print_month(&self, month: Month) -> Result<()> {
+        if self.month_options.is_empty() {
+            return Ok(());
+        }
+
         self.vault.update(month, |mut page| {
             for option in &self.month_options {
                 match option {
@@ -202,18 +211,22 @@ impl Preparer {
                         page.push_metadata(month.next().to_link(&self.vault).to_metadata("next"));
                         page.push_metadata(month.prev().to_link(&self.vault).to_metadata("prev"));
                     }
+                    MonthOption::Month => {
+                        for (index, date) in month.iter().enumerate() {
+                            if index == 0 || date.weekday() == Weekday::Mon {
+                                page.push_content(format!(
+                                    "#### {}",
+                                    date.iso_week().to_link(&self.vault)
+                                ));
+                            }
+                            page.push_content(format!(
+                                "- {} {}",
+                                weekday(date),
+                                date.to_link(&self.vault).into_embedded()
+                            ));
+                        }
+                    }
                 }
-            }
-
-            for (index, date) in month.iter().enumerate() {
-                if index == 0 || date.weekday() == Weekday::Mon {
-                    page.push_content(format!("#### {}", date.iso_week().to_link(&self.vault)));
-                }
-                page.push_content(format!(
-                    "- {} {}",
-                    weekday(date),
-                    date.to_link(&self.vault).into_embedded()
-                ));
             }
 
             Ok(page)
@@ -221,32 +234,43 @@ impl Preparer {
     }
 
     fn print_week(&self, week: IsoWeek) -> Result<()> {
+        if self.week_options.is_empty() {
+            return Ok(());
+        }
+
         self.vault.update(week, |mut page| {
             for option in &self.week_options {
                 match option {
                     WeekOption::Month => {
-                        page.push_metadata(Month::from(week).to_link(&self.vault).to_metadata("month"));
+                        page.push_metadata(
+                            Month::from(week).to_link(&self.vault).to_metadata("month"),
+                        );
                     }
                     WeekOption::Nav => {
                         page.push_metadata(week.next().to_link(&self.vault).to_metadata("next"));
                         page.push_metadata(week.prev().to_link(&self.vault).to_metadata("prev"));
                     }
+                    WeekOption::Week => {
+                        for date in week.iter() {
+                            page.push_content(format!(
+                                "- {} {}",
+                                weekday(date),
+                                date.to_link(&self.vault).into_embedded()
+                            ));
+                        }
+                    }
                 }
-            }
-
-            for date in week.iter() {
-                page.push_content(format!(
-                    "- {} {}",
-                    weekday(date),
-                    date.to_link(&self.vault).into_embedded()
-                ));
             }
 
             Ok(page)
         })
     }
 
-    fn print_date(&self, date: NaiveDate) -> Result<()> {
+    fn print_day(&self, date: NaiveDate) -> Result<()> {
+        if self.day_options.is_empty() {
+            return Ok(());
+        }
+
         self.vault.update(date, |mut page| {
             for option in &self.day_options {
                 match option {
@@ -254,10 +278,14 @@ impl Preparer {
                         page.push_metadata(weekday(date).to_metadata("day"));
                     }
                     DayOption::Week => {
-                        page.push_metadata(date.iso_week().to_link(&self.vault).to_metadata("week"));
+                        page.push_metadata(
+                            date.iso_week().to_link(&self.vault).to_metadata("week"),
+                        );
                     }
                     DayOption::Month => {
-                        page.push_metadata(Month::from(date).to_link(&self.vault).to_metadata("month"));
+                        page.push_metadata(
+                            Month::from(date).to_link(&self.vault).to_metadata("month"),
+                        );
                     }
                     DayOption::Nav => {
                         page.push_metadata(date.next().to_link(&self.vault).to_metadata("next"));

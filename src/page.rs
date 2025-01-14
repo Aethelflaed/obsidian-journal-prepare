@@ -256,7 +256,10 @@ mod tests {
         file.write_str(raw_content)?;
         let page: Page = file.path().try_into()?;
 
-        assert!(matches!(page.content.content.first(), Some(Entry::CodeBlock(_))));
+        assert!(matches!(
+            page.content.content.first(),
+            Some(Entry::CodeBlock(_))
+        ));
         if let Some(Entry::CodeBlock(code_block)) = page.content.content.first() {
             assert_eq!("toml", code_block.kind);
             assert_eq!(r#"value = "test""#, code_block.code);

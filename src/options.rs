@@ -21,50 +21,84 @@ pub struct Cli {
     pub to: Option<NaiveDate>,
 
     /// Configure day pages header
-    #[arg(short, long, num_args = 0.., value_enum, value_delimiter = ',', default_values_t = [DayOption::Day, DayOption::Week])]
+    #[arg(
+        short,
+        long,
+        num_args = 0..,
+        value_enum,
+        value_delimiter = ',',
+        default_values_t = [DayOption::Day, DayOption::Week]
+    )]
     pub day: Vec<DayOption>,
 
     /// Configure week pages header
-    #[arg(short, long, num_args = 0.., value_enum, value_delimiter = ',', default_values_t = [WeekOption::Nav, WeekOption::Month])]
+    #[arg(
+        short,
+        long,
+        num_args = 0..,
+        value_enum,
+        value_delimiter = ',',
+        default_values_t = [WeekOption::Nav, WeekOption::Month, WeekOption::Week]
+    )]
     pub week: Vec<WeekOption>,
 
     /// Configure month pages header
-    #[arg(short, long, num_args = 0.., value_enum, value_delimiter = ',', default_values_t = [MonthOption::Nav])]
+    #[arg(
+        short,
+        long,
+        num_args = 0..,
+        value_enum,
+        value_delimiter = ',',
+        default_values_t = [MonthOption::Nav, MonthOption::Month]
+    )]
     pub month: Vec<MonthOption>,
 
     /// Configure year pages header
-    #[arg(short, long, num_args = 0.., value_enum, value_delimiter = ',', default_values_t = [YearOption::Nav])]
+    #[arg(
+        short,
+        long,
+        num_args = 0..,
+        value_enum,
+        value_delimiter = ',',
+        default_values_t = [YearOption::Nav, YearOption::Month]
+    )]
     pub year: Vec<YearOption>,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum DayOption {
-    /// Display day of week
+    /// Add property day of week
     Day,
-    /// Display link to week
+    /// Add property link to week
     Week,
-    /// Display link to month
+    /// Add property link to month
     Month,
-    /// Display links to previous and next day
+    /// Add property links to previous and next day
     Nav,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum WeekOption {
-    /// Display link to month
+    /// Add embedded week days
+    Week,
+    /// Add property link to month
     Month,
-    /// Display links to previous and next week
+    /// Add property links to previous and next week
     Nav,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum MonthOption {
-    /// Display links to previous and next month
+    /// Add embedded month days
+    Month,
+    /// Add property links to previous and next month
     Nav,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum YearOption {
-    /// Display links to previous and next year
+    /// Add link to months
+    Month,
+    /// Add property links to previous and next year
     Nav,
 }
