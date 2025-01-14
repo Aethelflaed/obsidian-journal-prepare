@@ -20,29 +20,40 @@ impl Vault {
             path,
             journals_folder: None,
         };
+        vault.configure()?;
 
-        let daily_notes_config = vault.path.join(".obsidian").join("daily-notes.json");
+        Ok(vault)
+    }
+
+    fn configure(&mut self) -> Result<()> {
+        self.configure_journal()?;
+
+        Ok(())
+    }
+
+    fn configure_journal(&mut self) -> Result<()> {
+        let daily_notes_config = self.path.join(".obsidian").join("daily-notes.json");
         if !daily_notes_config.exists() {
-            return Ok(vault);
+            return Ok(());
         }
 
         let config = std::fs::read_to_string(daily_notes_config).with_context(|| {
             format!(
                 "reading \"{}/.obsidian/daily-notes.json\"",
-                vault.path.display()
+                self.path.display()
             )
         })?;
         let config: Value = serde_json::from_str(&config).with_context(|| {
             format!(
                 "parsing \"{}/.obsidian/daily-notes.json\"",
-                vault.path.display()
+                self.path.display()
             )
         })?;
         if let Some(folder) = config["folder"].as_str() {
-            vault.journals_folder = Some(folder.to_owned());
+            self.journals_folder = Some(folder.to_owned());
         }
 
-        Ok(vault)
+        Ok(())
     }
 
     pub fn page_path<T: ToPageName>(&self, object: T) -> String {
