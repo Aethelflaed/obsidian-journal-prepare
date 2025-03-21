@@ -1,6 +1,8 @@
-use crate::page::Page;
+use crate::events::Event;
+use crate::page::{Entry, Page};
 use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
+use chrono::NaiveDate;
 use serde_json::Value;
 use std::path::PathBuf;
 
@@ -8,6 +10,7 @@ use std::path::PathBuf;
 pub struct Vault {
     path: PathBuf,
     journals_folder: Option<String>,
+    events: Vec<Event>,
 }
 
 impl Vault {
@@ -19,6 +22,7 @@ impl Vault {
         let mut vault = Vault {
             path,
             journals_folder: None,
+            events: Default::default(),
         };
         vault.configure()?;
 
@@ -27,6 +31,7 @@ impl Vault {
 
     fn configure(&mut self) -> Result<()> {
         self.configure_journal()?;
+        self.configure_events()?;
 
         Ok(())
     }
@@ -50,11 +55,29 @@ impl Vault {
             )
         })?;
         if let Some(folder) = config["folder"].as_str() {
+            log::info!("Using journals_folder {}", folder);
             self.journals_folder = Some(folder.to_owned());
         }
 
         Ok(())
     }
+
+    fn configure_events(&mut self) -> Result<()> {
+        let event_page_path = self.path.join("events/recurring.md");
+        if !event_page_path.exists() {
+            return Ok(());
+        }
+        let event_page = Page::try_from(event_page_path.as_path())?;
+        for entry in &event_page.content.content {
+            if let Entry::CodeBlock(block) = entry {
+                log::info!("Block: {:?}", block);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn events(&self) {}
 
     pub fn page_path<T: ToPageName>(&self, object: T) -> String {
         let PageName { name, kind } = object.to_page_name();

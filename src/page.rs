@@ -9,7 +9,7 @@ use std::str::FromStr;
 #[derive(Debug)]
 pub struct Page {
     path: PathBuf,
-    content: Content,
+    pub content: Content,
 }
 
 impl Page {
@@ -71,8 +71,8 @@ impl Add for Page {
 
 #[derive(Debug, Default)]
 pub struct Content {
-    metadata: Vec<Metadata>,
-    content: Vec<Entry>,
+    pub metadata: Vec<Metadata>,
+    pub content: Vec<Entry>,
 }
 
 #[derive(Debug, derive_more::Display, PartialEq)]
@@ -85,8 +85,8 @@ pub enum Entry {
 #[derive(Debug, derive_more::Display, PartialEq)]
 #[display("```{kind}\n{code}\n```")]
 pub struct CodeBlock {
-    kind: String,
-    code: String,
+    pub kind: String,
+    pub code: String,
 }
 
 impl Display for Content {

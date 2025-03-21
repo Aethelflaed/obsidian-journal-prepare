@@ -18,6 +18,8 @@ use utils::{ToEmbedded, ToLink};
 mod vault;
 use vault::Vault;
 
+mod events;
+
 fn main() -> Result<()> {
     use clap::error::ErrorKind::*;
     use clap::Parser;
