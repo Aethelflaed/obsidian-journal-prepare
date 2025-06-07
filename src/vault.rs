@@ -2,10 +2,11 @@ use crate::events::Event;
 use crate::page::{Entry, Page};
 use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
-use chrono::NaiveDate;
 use serde_json::Value;
 use std::path::PathBuf;
 
+/// A vault represents the whole folder with all the documents, e.g. the obsidian folder (which
+/// they name a vault)
 #[derive(Debug)]
 pub struct Vault {
     path: PathBuf,
@@ -68,16 +69,20 @@ impl Vault {
             return Ok(());
         }
         let event_page = Page::try_from(event_page_path.as_path())?;
-        for entry in &event_page.content.content {
+        for entry in event_page.content.content {
             if let Entry::CodeBlock(block) = entry {
-                log::info!("Block: {:?}", block);
+                let event = block.try_into()?;
+                log::info!("Event: {:?}", event);
+                self.events.push(event);
             }
         }
 
         Ok(())
     }
 
-    pub fn events(&self) {}
+    pub fn events(&self) -> &Vec<Event> {
+        &self.events
+    }
 
     pub fn page_path<T: ToPageName>(&self, object: T) -> String {
         let PageName { name, kind } = object.to_page_name();
