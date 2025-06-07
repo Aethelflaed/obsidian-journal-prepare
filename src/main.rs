@@ -293,12 +293,13 @@ impl Preparer {
                         page.push_metadata(date.next().to_link(&self.vault).to_metadata("next"));
                         page.push_metadata(date.prev().to_link(&self.vault).to_metadata("prev"));
                     }
-                }
-            }
-
-            for event in self.vault.events() {
-                if event.matches(date) {
-                    page.push_content(&event.content);
+                    DayOption::Event => {
+                        for event in self.vault.events() {
+                            if event.matches(date) {
+                                page.push_content(&event.content);
+                            }
+                        }
+                    }
                 }
             }
 

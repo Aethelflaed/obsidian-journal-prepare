@@ -27,7 +27,7 @@ pub struct Cli {
         num_args = 0..,
         value_enum,
         value_delimiter = ',',
-        default_values_t = [DayOption::Day, DayOption::Week]
+        default_values_t = [DayOption::Day, DayOption::Week, DayOption::Month, DayOption::Nav, DayOption::Event]
     )]
     pub day: Vec<DayOption>,
 
@@ -75,6 +75,8 @@ pub enum DayOption {
     Month,
     /// Add property links to previous and next day
     Nav,
+    /// Add recurring event content, from events/recurring.md
+    Event,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
