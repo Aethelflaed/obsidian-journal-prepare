@@ -29,8 +29,7 @@ impl FromStr for Metadata {
 
         if let Some(dequoted) = value
             .strip_prefix('"')
-            .map(|v| v.strip_suffix('"'))
-            .flatten()
+            .and_then(|v| v.strip_suffix('"'))
         {
             value = dequoted;
         }

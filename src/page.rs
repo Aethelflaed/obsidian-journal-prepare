@@ -117,8 +117,8 @@ impl FromStr for Content {
         let mut page = Content::default();
         let mut lines = string.lines().peekable();
 
-        if let Some(_) = lines.next_if_eq(&"---") {
-            while let Some(line) = lines.next() {
+        if lines.next_if_eq(&"---").is_some() {
+            for line in lines.by_ref() {
                 if line == "---" {
                     break;
                 } else {
@@ -130,7 +130,7 @@ impl FromStr for Content {
         while let Some(line) = lines.next() {
             if let Some(kind) = line.strip_prefix("```") {
                 let mut code = String::new();
-                while let Some(line) = lines.next() {
+                for line in lines.by_ref() {
                     if line == "```" {
                         break;
                     } else {
