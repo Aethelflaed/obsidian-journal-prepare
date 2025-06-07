@@ -72,7 +72,7 @@ impl Vault {
         for entry in event_page.content.content {
             if let Entry::CodeBlock(block) = entry {
                 let event = block.try_into()?;
-                log::info!("Event: {:?}", event);
+                log::debug!("Event: {:?}", event);
                 self.events.push(event);
             }
         }
@@ -80,8 +80,8 @@ impl Vault {
         Ok(())
     }
 
-    pub fn events(&self) -> &Vec<Event> {
-        &self.events
+    pub fn events<'a>(&'a self) -> std::slice::Iter<'a, Event> {
+        self.events.iter()
     }
 
     pub fn page_path<T: ToPageName>(&self, object: T) -> String {

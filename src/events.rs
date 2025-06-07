@@ -1,6 +1,6 @@
 use crate::page::CodeBlock;
 use anyhow::{Error, Result};
-use chrono::{NaiveDate, Weekday};
+use chrono::{Datelike, NaiveDate, Weekday};
 use std::str::FromStr;
 use toml::Table;
 
@@ -8,7 +8,7 @@ use toml::Table;
 #[derive(Debug)]
 pub struct Event {
     frequency: Frequency,
-    content: String,
+    pub content: String,
     from: Option<NaiveDate>,
     to: Option<NaiveDate>,
     weekdays: Vec<Weekday>,
@@ -39,6 +39,24 @@ impl FromStr for Frequency {
 }
 
 impl Event {
+    pub fn matches(&self, date: NaiveDate) -> bool {
+        use Frequency::*;
+
+        if self.from.is_some() && self.from > Some(date) {
+            return false;
+        }
+        if self.to.is_some() && self.to < Some(date) {
+            return false;
+        }
+
+        match &self.frequency {
+            Daily => true,
+            Weekly => self.weekdays.iter().any(|day| *day == date.weekday()),
+            Monthly => self.monthdays.iter().any(|day| *day == date.day() as usize),
+            Yearly => self.yeardays.iter().any(|day| *day == date.ordinal() as usize),
+        }
+    }
+
     fn valid(self) -> Result<Self> {
         use Frequency::*;
 

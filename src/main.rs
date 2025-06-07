@@ -296,6 +296,12 @@ impl Preparer {
                 }
             }
 
+            for event in self.vault.events() {
+                if event.matches(date) {
+                    page.push_content(&event.content);
+                }
+            }
+
             Ok(page)
         })
     }
