@@ -83,7 +83,7 @@ pub enum Entry {
 }
 
 #[derive(Debug, derive_more::Display, PartialEq)]
-#[display("```{kind}\n{code}\n```")]
+#[display("```{kind}\n{code}```")]
 pub struct CodeBlock {
     pub kind: String,
     pub code: String,
@@ -135,6 +135,7 @@ impl FromStr for Content {
                         break;
                     } else {
                         code += line;
+                        code += "\n";
                     }
                 }
                 page.content.push(Entry::CodeBlock(CodeBlock {
@@ -262,7 +263,7 @@ mod tests {
         ));
         if let Some(Entry::CodeBlock(code_block)) = page.content.content.first() {
             assert_eq!("toml", code_block.kind);
-            assert_eq!(r#"value = "test""#, code_block.code);
+            assert_eq!("value = \"test\"\n", code_block.code);
         }
 
         assert_eq!(raw_content, format!("{}", page.content).as_str());
