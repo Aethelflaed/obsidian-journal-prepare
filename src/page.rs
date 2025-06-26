@@ -82,11 +82,26 @@ pub enum Entry {
     CodeBlock(CodeBlock),
 }
 
+impl Entry {
+    pub fn is_empty(&self) -> bool {
+        match &self {
+            Entry::Line(s) => s.is_empty(),
+            Entry::CodeBlock(block) => block.is_empty(),
+        }
+    }
+}
+
 #[derive(Debug, derive_more::Display, PartialEq)]
 #[display("```{kind}\n{code}```")]
 pub struct CodeBlock {
     pub kind: String,
     pub code: String,
+}
+
+impl CodeBlock {
+    pub fn is_empty(&self) -> bool {
+        self.code.is_empty()
+    }
 }
 
 impl Display for Content {
@@ -97,13 +112,16 @@ impl Display for Content {
         }
         writeln!(f, "---")?;
 
-        if let Some(Entry::Line(line)) = self.content.first() {
-            if !line.is_empty() {
-                writeln!(f)?;
-            }
-        }
+        let mut content_started = false;
 
         for line in &self.content {
+            if !content_started {
+                if line.is_empty() {
+                    continue;
+                } else {
+                    content_started = true;
+                }
+            }
             writeln!(f, "{}", line)?;
         }
         Ok(())
@@ -206,7 +224,6 @@ mod tests {
             ---
             {metadata}
             ---
-
             {content}"});
 
         let second_file = temp_dir.child("another page.md");
@@ -229,7 +246,6 @@ mod tests {
             week: "yes"
             month: "[[2024/September]]"
             ---
-
             - DONE Something
             - TODO Something
             - One other thing
