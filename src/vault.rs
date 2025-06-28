@@ -71,9 +71,11 @@ impl Vault {
         let event_page = Page::try_from(event_page_path.as_path())?;
         for entry in event_page.content.content {
             if let Entry::CodeBlock(block) = entry {
-                let event = block.try_into()?;
-                log::debug!("Event: {:?}", event);
-                self.events.push(event);
+                if block.kind.as_str() == "toml" {
+                    let event = block.try_into()?;
+                    log::debug!("Event: {:?}", event);
+                    self.events.push(event);
+                }
             }
         }
 
