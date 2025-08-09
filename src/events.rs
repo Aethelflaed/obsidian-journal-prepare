@@ -9,8 +9,7 @@ use toml::Table;
 pub struct Event {
     frequency: Frequency,
     pub content: String,
-    from: Option<NaiveDate>,
-    to: Option<NaiveDate>,
+    validity: DateRange,
     weekdays: Vec<Weekday>,
     monthdays: Vec<usize>,
     yeardays: Vec<usize>,
@@ -38,14 +37,64 @@ impl FromStr for Frequency {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct DateRange {
+    /// lower bound, inclusive if present
+    pub from: Option<NaiveDate>,
+    /// higher bound, inclusive if present
+    pub to: Option<NaiveDate>,
+}
+
+impl DateRange {
+    pub fn contains(&self, date: NaiveDate) -> bool {
+        (self.from.is_none() || self.from <= Some(date))
+            && (self.to.is_none() || self.to >= Some(date))
+    }
+}
+
+impl TryFrom<&Table> for DateRange {
+    type Error = Error;
+
+    fn try_from(toml: &Table) -> Result<DateRange> {
+        let mut range = DateRange::default();
+
+        if let Some(from) = toml.get("from") {
+            range.from = from.as_str().map(|from| from.parse()).transpose()?;
+        }
+
+        if let Some(to) = toml.get("to") {
+            range.to = to.as_str().map(|to| to.parse()).transpose()?;
+        }
+
+        if range.from.is_some() && range.to.is_some() && range.from >= range.to {
+            anyhow::bail!(
+                "Invalid range, {:?} should be strictly less than {:?}",
+                range.from,
+                range.to
+            );
+        }
+
+        Ok(range)
+    }
+}
+
+impl TryFrom<&toml::Value> for DateRange {
+    type Error = Error;
+
+    fn try_from(value: &toml::Value) -> Result<DateRange> {
+        if let Some(table) = value.as_table() {
+            Self::try_from(table)
+        } else {
+            anyhow::bail!("DateRange must be built from table not {:?}", value);
+        }
+    }
+}
+
 impl Event {
     pub fn matches(&self, date: NaiveDate) -> bool {
         use Frequency::*;
 
-        if self.from.is_some() && self.from > Some(date) {
-            return false;
-        }
-        if self.to.is_some() && self.to < Some(date) {
+        if !self.validity.contains(date) {
             return false;
         }
 
@@ -53,7 +102,10 @@ impl Event {
             Daily => true,
             Weekly => self.weekdays.iter().any(|day| *day == date.weekday()),
             Monthly => self.monthdays.iter().any(|day| *day == date.day() as usize),
-            Yearly => self.yeardays.iter().any(|day| *day == date.ordinal() as usize),
+            Yearly => self
+                .yeardays
+                .iter()
+                .any(|day| *day == date.ordinal() as usize),
         }
     }
 
@@ -68,21 +120,21 @@ impl Event {
                 } else {
                     Ok(self)
                 }
-            },
+            }
             Monthly => {
                 if self.monthdays.is_empty() {
                     anyhow::bail!("No monthdays configured for monthly event {:?}", self)
                 } else {
                     Ok(self)
                 }
-            },
+            }
             Yearly => {
                 if self.yeardays.is_empty() {
                     anyhow::bail!("No yeardays configured for yearly event {:?}", self)
                 } else {
                     Ok(self)
                 }
-            },
+            }
         }
     }
 }
@@ -115,19 +167,9 @@ impl TryFrom<CodeBlock> for Event {
         };
         let content = content?.to_string();
 
-        let from = if let Some(from) = toml.get("from") {
-            from.as_str().map(|from| from.parse()).transpose()?
-        } else {
-            None
-        };
+        let validity = DateRange::try_from(&toml)?;
 
-        let to = if let Some(to) = toml.get("to") {
-            to.as_str().map(|to| to.parse()).transpose()?
-        } else {
-            None
-        };
-
-        let mut weekdays : Vec<Weekday> = vec![];
+        let mut weekdays: Vec<Weekday> = vec![];
 
         if let Some(entry) = toml.get("weekdays") {
             if let Some(array) = entry.as_array() {
@@ -178,8 +220,7 @@ impl TryFrom<CodeBlock> for Event {
         let event = Event {
             frequency,
             content,
-            from,
-            to,
+            validity,
             weekdays,
             monthdays,
             yeardays,
@@ -205,17 +246,107 @@ mod tests {
         Ok(())
     }
 
+    mod date_range_from_toml {
+        use super::*;
+
+        #[test]
+        fn table() -> Result<()> {
+            let toml = r#"
+                from = "2025-08-01"
+                to = "2025-08-10"
+            "#
+            .parse::<Table>()?;
+            let range = DateRange::try_from(&toml)?;
+
+            assert_eq!(NaiveDate::from_ymd_opt(2025, 8, 1), range.from);
+            assert_eq!(NaiveDate::from_ymd_opt(2025, 8, 10), range.to);
+            Ok(())
+        }
+
+        #[test]
+        fn invalid_range() -> Result<()> {
+            let toml = r#"
+                from = "2025-08-11"
+                to = "2025-08-01"
+            "#
+            .parse::<Table>()?;
+            let range = DateRange::try_from(&toml);
+
+            assert!(range.is_err());
+            Ok(())
+        }
+
+        #[test]
+        fn empty_range() -> Result<()> {
+            let toml = r#"
+                from = "2025-08-01"
+                to = "2025-08-01"
+            "#
+            .parse::<Table>()?;
+            let range = DateRange::try_from(&toml);
+
+            assert!(range.is_err());
+            Ok(())
+        }
+
+        #[test]
+        fn value() -> Result<()> {
+            let toml = r#"
+                from = "2025-08-01"
+                to = "2025-08-10"
+            "#
+            .parse::<toml::Value>()?;
+            let range = DateRange::try_from(&toml)?;
+
+            assert_eq!(NaiveDate::from_ymd_opt(2025, 8, 1), range.from);
+            assert_eq!(NaiveDate::from_ymd_opt(2025, 8, 10), range.to);
+            Ok(())
+        }
+
+        #[test]
+        fn from_only() -> Result<()> {
+            let toml = r#"
+                from = "2025-08-01"
+            "#
+            .parse::<Table>()?;
+            let range = DateRange::try_from(&toml)?;
+
+            assert_eq!(NaiveDate::from_ymd_opt(2025, 8, 1), range.from);
+            assert_eq!(None, range.to);
+            Ok(())
+        }
+
+        #[test]
+        fn to_only() -> Result<()> {
+            let toml = r#"
+                to = "2025-08-01"
+            "#
+            .parse::<Table>()?;
+            let range = DateRange::try_from(&toml)?;
+
+            assert_eq!(None, range.from);
+            assert_eq!(NaiveDate::from_ymd_opt(2025, 8, 1), range.to);
+            Ok(())
+        }
+    }
+
     mod event_from_code_block {
         use super::*;
         use indoc::indoc;
 
         fn block(content: &str) -> CodeBlock {
-            CodeBlock { kind: "toml".to_string(), code: content.to_string() }
+            CodeBlock {
+                kind: "toml".to_string(),
+                code: content.to_string(),
+            }
         }
 
         #[test]
         fn not_a_toml_block() {
-            let block = CodeBlock { kind: "foo".to_string(), code: "".to_string() };
+            let block = CodeBlock {
+                kind: "foo".to_string(),
+                code: "".to_string(),
+            };
             assert!(Event::try_from(block).is_err());
         }
 
@@ -254,8 +385,8 @@ mod tests {
                 to = "2025-01-31"
             "#});
             let event = Event::try_from(block)?;
-            assert_eq!("2025-01-01".parse().ok(), event.from);
-            assert_eq!("2025-01-31".parse().ok(), event.to);
+            assert_eq!("2025-01-01".parse().ok(), event.validity.from);
+            assert_eq!("2025-01-31".parse().ok(), event.validity.to);
             Ok(())
         }
     }
