@@ -27,10 +27,7 @@ impl FromStr for Metadata {
         let key = key.trim().to_owned();
         let mut value = value.trim();
 
-        if let Some(dequoted) = value
-            .strip_prefix('"')
-            .and_then(|v| v.strip_suffix('"'))
-        {
+        if let Some(dequoted) = value.strip_prefix('"').and_then(|v| v.strip_suffix('"')) {
             value = dequoted;
         }
         let value = value.to_owned();

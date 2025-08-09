@@ -218,7 +218,7 @@ mod tests {
     fn update() -> anyhow::Result<()> {
         let temp_dir = assert_fs::TempDir::new()?;
         let vault = Vault::new(temp_dir.path().to_path_buf())?;
-        let name : PageName = "foo".to_string().into();
+        let name: PageName = "foo".to_string().into();
 
         vault.update(name.clone(), |mut page| {
             page.push_content("World");
@@ -229,7 +229,7 @@ mod tests {
             Ok(page)
         })?;
 
-        let page : Page = vault.page_file_path(name).as_path().try_into()?;
+        let page: Page = vault.page_file_path(name).as_path().try_into()?;
         assert_eq!(format!("{}", page.content), "---\n---\nHello\nWorld\n");
 
         Ok(())
