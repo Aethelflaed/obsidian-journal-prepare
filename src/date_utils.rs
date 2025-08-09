@@ -58,7 +58,7 @@ impl std::ops::Sub<Months> for Month {
     }
 }
 
-pub trait DateRange {
+pub trait ToDateIterator {
     type Element;
 
     fn first(&self) -> Self::Element;
@@ -75,7 +75,7 @@ pub trait DateRange {
     }
 }
 
-impl DateRange for IsoWeek {
+impl ToDateIterator for IsoWeek {
     type Element = NaiveDate;
 
     fn first(&self) -> NaiveDate {
@@ -85,7 +85,7 @@ impl DateRange for IsoWeek {
         NaiveDate::from_isoywd_opt(self.year(), self.week(), Weekday::Sun).unwrap()
     }
 }
-impl DateRange for Month {
+impl ToDateIterator for Month {
     type Element = NaiveDate;
 
     fn first(&self) -> NaiveDate {
@@ -95,7 +95,7 @@ impl DateRange for Month {
         self.first() + Months::new(1) - Days::new(1)
     }
 }
-impl DateRange for Year {
+impl ToDateIterator for Year {
     type Element = Month;
 
     fn first(&self) -> Month {
@@ -155,7 +155,7 @@ impl Navigation for IsoWeek {
 
 pub struct DateIterator<'a, T, U>
 where
-    T: DateRange<Element = U> + ?Sized,
+    T: ToDateIterator<Element = U> + ?Sized,
     U: Navigation + std::cmp::PartialOrd + Clone,
 {
     range: &'a T,
@@ -164,14 +164,14 @@ where
 
 impl<T, U> std::iter::FusedIterator for DateIterator<'_, T, U>
 where
-    T: DateRange<Element = U>,
+    T: ToDateIterator<Element = U>,
     U: Navigation + std::cmp::PartialOrd + Clone,
 {
 }
 
 impl<T, U> Iterator for DateIterator<'_, T, U>
 where
-    T: DateRange<Element = U>,
+    T: ToDateIterator<Element = U>,
     U: Navigation + std::cmp::PartialOrd + Clone,
 {
     type Item = U;
@@ -216,7 +216,7 @@ mod tests {
         );
     }
 
-    mod date_range {
+    mod to_date_iterator {
         use super::*;
 
         #[test]

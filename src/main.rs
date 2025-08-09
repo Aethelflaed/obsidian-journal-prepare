@@ -7,7 +7,7 @@ use options::{Cli, DayOption, MonthOption, WeekOption, YearOption};
 mod page;
 
 mod date_utils;
-use date_utils::{DateRange, Month, Navigation, Year};
+use date_utils::{ToDateIterator, Month, Navigation, Year};
 
 mod metadata;
 use metadata::ToMetadata;
