@@ -7,12 +7,155 @@ use toml::Table;
 /// Describe a recurring event
 #[derive(Debug)]
 pub struct Event {
-    frequency: Frequency,
+    recurrence: Recurrence,
     pub content: String,
     validity: DateRange,
-    weekdays: Vec<Weekday>,
-    monthdays: Vec<usize>,
-    yeardays: Vec<usize>,
+    exceptions: Vec<DateRange>,
+}
+
+#[derive(Debug)]
+pub enum Recurrence {
+    Daily,
+    /// Weekly every Weekday
+    Weekly(Vec<Weekday>),
+    /// Monthly each Nth day, starting from 1
+    Monthly(Vec<usize>),
+    /// Yearly each Nth day, starting from 1
+    Yearly(Vec<usize>),
+}
+
+impl Recurrence {
+    pub fn matches(&self, date: NaiveDate) -> bool {
+        use Recurrence::*;
+        match self {
+            Daily => true,
+            Weekly(weekdays) => weekdays.iter().any(|day| *day == date.weekday()),
+            Monthly(monthdays) => monthdays.iter().any(|day| *day == date.day() as usize),
+            Yearly(yeardays) => yeardays.iter().any(|day| *day == date.ordinal() as usize),
+        }
+    }
+}
+
+impl TryFrom<&Table> for Recurrence {
+    type Error = Error;
+
+    fn try_from(toml: &Table) -> Result<Self> {
+        let Some(frequency) = toml.get("frequency").map(|frequency| {
+            frequency
+                .as_str()
+                .ok_or(anyhow::anyhow!("Unknown frequency {:?}", frequency))
+                .map(Frequency::from_str)
+        }) else {
+            anyhow::bail!("`frequency` is required");
+        };
+        let frequency = frequency??;
+
+        match frequency {
+            Frequency::Daily => {
+                if toml.contains_key("weekdays") {
+                    anyhow::bail!("`weekdays` not allowed for daily recurrence");
+                }
+                if toml.contains_key("monthdays") {
+                    anyhow::bail!("`monthdays` not allowed for daily recurrence");
+                }
+                if toml.contains_key("yeardays") {
+                    anyhow::bail!("`yeardays` not allowed for daily recurrence");
+                }
+                Ok(Recurrence::Daily)
+            }
+            Frequency::Weekly => {
+                if toml.contains_key("monthdays") {
+                    anyhow::bail!("`monthdays` not allowed for weekly recurrence");
+                }
+                if toml.contains_key("yeardays") {
+                    anyhow::bail!("`yeardays` not allowed for weekly recurrence");
+                }
+
+                let Some(Some(array)) = toml.get("weekdays").map(|e| e.as_array()) else {
+                    anyhow::bail!(
+                        "`weekdays` required for weekly recurrence and should be an array"
+                    );
+                };
+
+                array
+                    .iter()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .ok_or(anyhow::anyhow!(
+                                "`weekdays` values should be strings, not {:?}",
+                                value
+                            ))
+                            .and_then(|string| {
+                                Weekday::from_str(string).map_err(|err| {
+                                    anyhow::anyhow!(
+                                        "`weekdays` values should be parsable week days: {:?}",
+                                        err
+                                    )
+                                })
+                            })
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .map(Recurrence::Weekly)
+            }
+            Frequency::Monthly => {
+                if toml.contains_key("weekdays") {
+                    anyhow::bail!("`weekdays` not allowed for daily recurrence");
+                }
+                if toml.contains_key("yeardays") {
+                    anyhow::bail!("`yeardays` not allowed for daily recurrence");
+                }
+
+                let Some(Some(array)) = toml.get("monthdays").map(|e| e.as_array()) else {
+                    anyhow::bail!(
+                        "`monthdays` required for monthly recurrence and should be an array"
+                    );
+                };
+
+                array
+                    .iter()
+                    .map(|value| {
+                        value
+                            .as_integer()
+                            .ok_or(anyhow::anyhow!(
+                                "`monthdays` values should be integers, not {:?}",
+                                value
+                            ))
+                            .map(|i| i as usize)
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .map(Recurrence::Monthly)
+            }
+            Frequency::Yearly => {
+                if toml.contains_key("weekdays") {
+                    anyhow::bail!("`weekdays` not allowed for daily recurrence");
+                }
+                if toml.contains_key("monthdays") {
+                    anyhow::bail!("`monthdays` not allowed for daily recurrence");
+                }
+
+                let Some(Some(array)) = toml.get("yeardays").map(|e| e.as_array()) else {
+                    anyhow::bail!(
+                        "`yeardays` required for yearly recurrence and should be an array"
+                    );
+                };
+
+                array
+                    .iter()
+                    .map(|value| {
+                        value
+                            .as_integer()
+                            .ok_or(anyhow::anyhow!(
+                                "`yeardays` values should be integers, not {:?}",
+                                value
+                            ))
+                            .map(|i| i as usize)
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .map(Recurrence::Yearly)
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -92,50 +235,17 @@ impl TryFrom<&toml::Value> for DateRange {
 
 impl Event {
     pub fn matches(&self, date: NaiveDate) -> bool {
-        use Frequency::*;
-
         if !self.validity.contains(date) {
             return false;
         }
 
-        match &self.frequency {
-            Daily => true,
-            Weekly => self.weekdays.iter().any(|day| *day == date.weekday()),
-            Monthly => self.monthdays.iter().any(|day| *day == date.day() as usize),
-            Yearly => self
-                .yeardays
-                .iter()
-                .any(|day| *day == date.ordinal() as usize),
-        }
-    }
-
-    fn valid(self) -> Result<Self> {
-        use Frequency::*;
-
-        match self.frequency {
-            Daily => Ok(self),
-            Weekly => {
-                if self.weekdays.is_empty() {
-                    anyhow::bail!("No weekdays configured for monthly event {:?}", self)
-                } else {
-                    Ok(self)
-                }
-            }
-            Monthly => {
-                if self.monthdays.is_empty() {
-                    anyhow::bail!("No monthdays configured for monthly event {:?}", self)
-                } else {
-                    Ok(self)
-                }
-            }
-            Yearly => {
-                if self.yeardays.is_empty() {
-                    anyhow::bail!("No yeardays configured for yearly event {:?}", self)
-                } else {
-                    Ok(self)
-                }
+        for exception in &self.exceptions {
+            if exception.contains(date) {
+                return false;
             }
         }
+
+        self.recurrence.matches(date)
     }
 }
 
@@ -148,16 +258,6 @@ impl TryFrom<CodeBlock> for Event {
         }
         let toml = block.code.parse::<Table>()?;
 
-        let Some(frequency) = toml.get("frequency").map(|frequency| {
-            frequency
-                .as_str()
-                .ok_or(anyhow::anyhow!("Unknown frequency {:?}", frequency))
-                .map(|str_freq| str_freq.parse())
-        }) else {
-            anyhow::bail!("No frequency given in {:?}", block);
-        };
-        let frequency = frequency??;
-
         let Some(content) = toml.get("content").map(|content| {
             content
                 .as_str()
@@ -167,76 +267,38 @@ impl TryFrom<CodeBlock> for Event {
         };
         let content = content?.to_string();
 
+        let recurrence = Recurrence::try_from(&toml)?;
         let validity = DateRange::try_from(&toml)?;
 
-        let mut weekdays: Vec<Weekday> = vec![];
+        let mut exceptions = vec![];
 
-        if let Some(entry) = toml.get("weekdays") {
+        if let Some(entry) = toml.get("exceptions") {
             if let Some(array) = entry.as_array() {
                 for value in array {
-                    if let Some(string) = value.as_str() {
-                        weekdays.push(string.parse()?);
-                    } else {
-                        anyhow::bail!("weekdays values should be strings, not {:?}", value);
-                    }
+                    exceptions.push(DateRange::try_from(value)?);
                 }
             } else {
-                anyhow::bail!("weekdays should be an array, not {:?}", entry);
+                anyhow::bail!("exceptions should be an array, not {:?}", entry);
             }
         }
 
-        let mut monthdays = vec![];
-
-        if let Some(entry) = toml.get("monthdays") {
-            if let Some(array) = entry.as_array() {
-                for value in array {
-                    if let Some(integer) = value.as_integer() {
-                        monthdays.push(integer as usize);
-                    } else {
-                        anyhow::bail!("monthdays values should be integers, not {:?}", value);
-                    }
-                }
-            } else {
-                anyhow::bail!("monthdays should be an array, not {:?}", entry);
-            }
-        }
-
-        let mut yeardays = vec![];
-
-        if let Some(entry) = toml.get("yeardays") {
-            if let Some(array) = entry.as_array() {
-                for value in array {
-                    if let Some(integer) = value.as_integer() {
-                        yeardays.push(integer as usize);
-                    } else {
-                        anyhow::bail!("yeardays values should be integers, not {:?}", value);
-                    }
-                }
-            } else {
-                anyhow::bail!("yeardays should be an array, not {:?}", entry);
-            }
-        }
-
-        let event = Event {
-            frequency,
+        Ok(Event {
+            recurrence,
             content,
             validity,
-            weekdays,
-            monthdays,
-            yeardays,
-        };
-
-        event.valid()
+            exceptions,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Frequency::*;
 
     #[test]
     fn frequency_from_str() -> Result<()> {
+        use Frequency::*;
+
         assert!(matches!("DAILY".parse::<Frequency>()?, Daily));
         assert!(matches!("WeekLy".parse::<Frequency>()?, Weekly));
         assert!(matches!("MonthLy".parse::<Frequency>()?, Monthly));
@@ -371,7 +433,7 @@ mod tests {
                 content = "Foo"
             "#});
             let event = Event::try_from(block)?;
-            assert!(matches!(event.frequency, Daily));
+            assert!(matches!(event.recurrence, Recurrence::Daily));
             assert_eq!("Foo", event.content);
             Ok(())
         }
