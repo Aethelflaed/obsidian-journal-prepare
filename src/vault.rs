@@ -2,16 +2,17 @@ use crate::events::Event;
 use crate::page::{Entry, Page};
 use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-mod config;
+pub mod config;
+pub use config::Config;
 
 /// A vault represents the whole folder with all the documents, e.g. the obsidian folder (which
 /// they name a vault)
 #[derive(Debug)]
 pub struct Vault {
     path: PathBuf,
-    config: config::Config,
+    config: Config,
     events: Vec<Event>,
 }
 
@@ -29,6 +30,14 @@ impl Vault {
         vault.configure()?;
 
         Ok(vault)
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     fn configure(&mut self) -> Result<()> {

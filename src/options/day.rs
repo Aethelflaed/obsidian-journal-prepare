@@ -1,4 +1,5 @@
 use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum DayOption {
@@ -24,6 +25,27 @@ pub struct Page {
     events: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Settings {
+    pub day_of_week: bool,
+    pub link_to_week: bool,
+    pub link_to_month: bool,
+    pub nav_link: bool,
+    pub events: bool,
+}
+
+impl From<Page> for Settings {
+    fn from(page: Page) -> Self {
+        Settings {
+            day_of_week: page.day_of_week,
+            link_to_week: page.link_to_week,
+            link_to_month: page.link_to_month,
+            nav_link: page.nav_link,
+            events: page.events,
+        }
+    }
+}
+
 impl From<&clap::ArgMatches> for Page {
     fn from(matches: &clap::ArgMatches) -> Page {
         if matches.get_flag("no_day_page") {
@@ -41,7 +63,7 @@ impl From<&clap::ArgMatches> for Page {
                     }
                     page
                 })
-                .unwrap_or_else(Page::default)
+                .unwrap_or_default()
         }
     }
 }
@@ -141,6 +163,14 @@ impl Page {
             .join(" ");
 
         format!("{}\n\n[default: {}]", Self::help(), default_values)
+    }
+
+    pub fn update(&mut self, settings: &Settings) {
+        self.day_of_week = settings.day_of_week;
+        self.link_to_week = settings.link_to_week;
+        self.link_to_month = settings.link_to_month;
+        self.nav_link = settings.nav_link;
+        self.events = settings.events;
     }
 
     fn add_option(&mut self, option: &DayOption) {

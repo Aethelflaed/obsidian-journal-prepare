@@ -1,41 +1,91 @@
+use crate::options::{day, month, week, year};
+use crate::page::{CodeBlock, Entry, Page};
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;
 
 #[derive(Debug, Default)]
 pub struct Config {
-    pub journals_folder: Option<String>,
+    journals_folder: Option<String>,
+    settings: Option<Settings>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Settings {
+    #[serde(default)]
+    pub day: Option<day::Settings>,
+    #[serde(default)]
+    pub week: Option<week::Settings>,
+    #[serde(default)]
+    pub month: Option<month::Settings>,
+    #[serde(default)]
+    pub year: Option<year::Settings>,
 }
 
 impl Config {
     pub fn new(path: &Path) -> Result<Self> {
-        Ok(Config {
-            journals_folder: read_daily_notes_config(path)?,
-        })
+        let mut config = Config::default();
+
+        config.read_daily_notes_config(path)?;
+        config.read_config_path(&path.join("journal-automation.md"))?;
+
+        Ok(config)
     }
 
     pub fn journals_folder(&self) -> Option<&str> {
         self.journals_folder.as_deref()
     }
-}
 
-fn read_daily_notes_config(path: &Path) -> Result<Option<String>> {
-    let daily_notes_config = path.join(".obsidian").join("daily-notes.json");
-    if !daily_notes_config.exists() {
-        return Ok(None);
+    pub fn settings(&self) -> Option<&Settings> {
+        self.settings.as_ref()
     }
 
-    let config = std::fs::read_to_string(&daily_notes_config)
-        .with_context(|| format!("reading \"{}\"", daily_notes_config.display()))?;
-    let config: Value = serde_json::from_str(&config)
-        .with_context(|| format!("parsing \"{}\"", daily_notes_config.display()))?;
+    fn read_config_path(&mut self, path: &Path) -> Result<()> {
+        if !path.exists() {
+            return Ok(());
+        }
 
-    if let Some(folder) = config["folder"].as_str() {
-        log::info!("Using journals_folder {}", folder);
-        return Ok(Some(folder.to_owned()));
+        let config = Page::try_from(path)?;
+
+        for entry in config.content.content {
+            if let Entry::CodeBlock(block) = entry {
+                if block.kind.as_str() == "toml" {
+                    self.read_config_block(block)?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
-    Ok(None)
+    fn read_config_block(&mut self, block: CodeBlock) -> Result<()> {
+        if block.kind != "toml" {
+            anyhow::bail!("Not a toml block");
+        }
+        self.settings = Some(toml::from_str(&block.code)?);
+
+        Ok(())
+    }
+
+    fn read_daily_notes_config(&mut self, path: &Path) -> Result<()> {
+        let daily_notes_config = path.join(".obsidian").join("daily-notes.json");
+        if !daily_notes_config.exists() {
+            return Ok(());
+        }
+
+        let config = std::fs::read_to_string(&daily_notes_config)
+            .with_context(|| format!("reading \"{}\"", daily_notes_config.display()))?;
+        let config: Value = serde_json::from_str(&config)
+            .with_context(|| format!("parsing \"{}\"", daily_notes_config.display()))?;
+
+        if let Some(folder) = config["folder"].as_str() {
+            log::info!("Using journals_folder {}", folder);
+            self.journals_folder = Some(folder.to_owned());
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

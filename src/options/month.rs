@@ -1,4 +1,5 @@
 use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum MonthOption {
@@ -13,6 +14,21 @@ pub struct Page {
     enabled: bool,
     month: bool,
     nav_link: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Settings {
+    pub month: bool,
+    pub nav_link: bool,
+}
+
+impl From<Page> for Settings {
+    fn from(page: Page) -> Self {
+        Settings {
+            month: page.month,
+            nav_link: page.nav_link,
+        }
+    }
 }
 
 impl From<&clap::ArgMatches> for Page {
@@ -32,7 +48,7 @@ impl From<&clap::ArgMatches> for Page {
                     }
                     page
                 })
-                .unwrap_or_else(Page::default)
+                .unwrap_or_default()
         }
     }
 }
@@ -101,6 +117,11 @@ impl Page {
             .join(" ");
 
         format!("{}\n\n[default: {}]", Self::help(), default_values)
+    }
+
+    pub fn update(&mut self, settings: &Settings) {
+        self.month = settings.month;
+        self.nav_link = settings.nav_link;
     }
 
     fn add_option(&mut self, option: &MonthOption) {
