@@ -10,8 +10,13 @@ use std::path::PathBuf;
 #[derive(Debug)]
 pub struct Vault {
     path: PathBuf,
-    journals_folder: Option<String>,
+    config: Config,
     events: Vec<Event>,
+}
+
+#[derive(Debug, Default)]
+struct Config {
+    journals_folder: Option<String>,
 }
 
 impl Vault {
@@ -22,7 +27,7 @@ impl Vault {
         }
         let mut vault = Vault {
             path,
-            journals_folder: None,
+            config: Default::default(),
             events: Default::default(),
         };
         vault.configure()?;
@@ -38,6 +43,12 @@ impl Vault {
     }
 
     fn configure_journal(&mut self) -> Result<()> {
+        self.read_daily_notes_config()?;
+
+        Ok(())
+    }
+
+    fn read_daily_notes_config(&mut self) -> Result<()> {
         let daily_notes_config = self.path.join(".obsidian").join("daily-notes.json");
         if !daily_notes_config.exists() {
             return Ok(());
@@ -57,7 +68,7 @@ impl Vault {
         })?;
         if let Some(folder) = config["folder"].as_str() {
             log::info!("Using journals_folder {}", folder);
-            self.journals_folder = Some(folder.to_owned());
+            self.config.journals_folder = Some(folder.to_owned());
         }
 
         Ok(())
@@ -90,7 +101,7 @@ impl Vault {
         let PageName { name, kind } = object.to_page_name();
         match kind {
             PageKind::Journal => {
-                if let Some(journals_folder) = self.journals_folder.clone() {
+                if let Some(journals_folder) = self.config.journals_folder.clone() {
                     journals_folder + name.as_str()
                 } else {
                     name
