@@ -158,7 +158,7 @@ impl TryFrom<&Table> for Recurrence {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::IsVariant)]
 pub enum Frequency {
     Daily,
     Weekly,
@@ -297,13 +297,11 @@ mod tests {
 
     #[test]
     fn frequency_from_str() -> Result<()> {
-        use Frequency::*;
-
-        assert!(matches!("DAILY".parse::<Frequency>()?, Daily));
-        assert!(matches!("WeekLy".parse::<Frequency>()?, Weekly));
-        assert!(matches!("MonthLy".parse::<Frequency>()?, Monthly));
-        assert!(matches!("YearLy".parse::<Frequency>()?, Yearly));
-        assert!(matches!("Other".parse::<Frequency>(), Err(_)));
+        assert!("DAILY".parse::<Frequency>()?.is_daily());
+        assert!("WeekLy".parse::<Frequency>()?.is_weekly());
+        assert!("MonthLy".parse::<Frequency>()?.is_monthly());
+        assert!("YearLy".parse::<Frequency>()?.is_yearly());
+        assert!("Other".parse::<Frequency>().is_err());
 
         Ok(())
     }
