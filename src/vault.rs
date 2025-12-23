@@ -2,21 +2,17 @@ use crate::events::Event;
 use crate::page::{Entry, Page};
 use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
-use serde_json::Value;
 use std::path::PathBuf;
+
+mod config;
 
 /// A vault represents the whole folder with all the documents, e.g. the obsidian folder (which
 /// they name a vault)
 #[derive(Debug)]
 pub struct Vault {
     path: PathBuf,
-    config: Config,
+    config: config::Config,
     events: Vec<Event>,
-}
-
-#[derive(Debug, Default)]
-struct Config {
-    journals_folder: Option<String>,
 }
 
 impl Vault {
@@ -26,8 +22,8 @@ impl Vault {
                 .with_context(|| format!("creating dir {:?}", path))?;
         }
         let mut vault = Vault {
+            config: config::Config::new(&path)?,
             path,
-            config: Default::default(),
             events: Default::default(),
         };
         vault.configure()?;
@@ -36,40 +32,7 @@ impl Vault {
     }
 
     fn configure(&mut self) -> Result<()> {
-        self.configure_journal()?;
         self.configure_events()?;
-
-        Ok(())
-    }
-
-    fn configure_journal(&mut self) -> Result<()> {
-        self.read_daily_notes_config()?;
-
-        Ok(())
-    }
-
-    fn read_daily_notes_config(&mut self) -> Result<()> {
-        let daily_notes_config = self.path.join(".obsidian").join("daily-notes.json");
-        if !daily_notes_config.exists() {
-            return Ok(());
-        }
-
-        let config = std::fs::read_to_string(daily_notes_config).with_context(|| {
-            format!(
-                "reading \"{}/.obsidian/daily-notes.json\"",
-                self.path.display()
-            )
-        })?;
-        let config: Value = serde_json::from_str(&config).with_context(|| {
-            format!(
-                "parsing \"{}/.obsidian/daily-notes.json\"",
-                self.path.display()
-            )
-        })?;
-        if let Some(folder) = config["folder"].as_str() {
-            log::info!("Using journals_folder {}", folder);
-            self.config.journals_folder = Some(folder.to_owned());
-        }
 
         Ok(())
     }
@@ -101,8 +64,8 @@ impl Vault {
         let PageName { name, kind } = object.to_page_name();
         match kind {
             PageKind::Journal => {
-                if let Some(journals_folder) = self.config.journals_folder.clone() {
-                    journals_folder + name.as_str()
+                if let Some(journals_folder) = self.config.journals_folder() {
+                    journals_folder.to_owned() + name.as_str()
                 } else {
                     name
                 }
@@ -140,61 +103,7 @@ mod tests {
     use super::*;
     use assert_fs::prelude::*;
 
-    #[test]
-    fn default() -> anyhow::Result<()> {
-        let temp_dir = assert_fs::TempDir::new()?;
-        let vault = Vault::new(temp_dir.path().to_path_buf())?;
-
-        assert_eq!(temp_dir.path(), vault.path);
-
-        assert_eq!(
-            "page",
-            vault.page_path(PageName {
-                name: "page".to_owned(),
-                kind: PageKind::Default
-            })
-        );
-        assert_eq!(
-            "page",
-            vault.page_path(PageName {
-                name: "page".to_owned(),
-                kind: PageKind::Journal
-            })
-        );
-
-        assert_eq!(
-            temp_dir.child("page.md").path(),
-            vault.page_file_path(PageName {
-                name: "page".to_owned(),
-                kind: PageKind::Default
-            })
-        );
-        assert_eq!(
-            temp_dir.child("page.md").path(),
-            vault.page_file_path(PageName {
-                name: "page".to_owned(),
-                kind: PageKind::Journal
-            })
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn create_vault() -> anyhow::Result<()> {
-        let temp_dir = assert_fs::TempDir::new()?.child("dir");
-        let vault = Vault::new(temp_dir.path().to_path_buf())?;
-
-        assert!(temp_dir.path().exists());
-        assert!(temp_dir.path().is_dir());
-        assert_eq!(temp_dir.path(), vault.path);
-
-        Ok(())
-    }
-
-    #[test]
-    fn daily_notes_folder() -> anyhow::Result<()> {
-        let temp_dir = assert_fs::TempDir::new()?;
+    fn create_daily_notes_config(temp_dir: &assert_fs::TempDir) -> Result<()> {
         let obsidian = temp_dir.child(".obsidian");
         std::fs::create_dir_all(obsidian.path())?;
 
@@ -207,12 +116,41 @@ mod tests {
             "#,
         )?;
 
+        Ok(())
+    }
+
+    #[test]
+    fn page_file_path() -> Result<()> {
+        let temp_dir = assert_fs::TempDir::new()?;
         let vault = Vault::new(temp_dir.path().to_path_buf())?;
+
         assert_eq!(
-            "daily-notes/page",
-            vault.page_path(PageName {
+            temp_dir.child("page.md").path(),
+            vault.page_file_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Default
+            })
+        );
+        assert_eq!(
+            temp_dir.child("page.md").path(),
+            vault.page_file_path(PageName {
                 name: "page".to_owned(),
                 kind: PageKind::Journal
+            })
+        );
+
+        create_daily_notes_config(&temp_dir)?;
+
+        let vault = Vault {
+            config: config::Config::new(temp_dir.path())?,
+            ..vault
+        };
+
+        assert_eq!(
+            temp_dir.child("page.md").path(),
+            vault.page_file_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Default
             })
         );
         assert_eq!(
@@ -222,11 +160,69 @@ mod tests {
                 kind: PageKind::Journal
             })
         );
+
         Ok(())
     }
 
     #[test]
-    fn update() -> anyhow::Result<()> {
+    fn page_path() -> Result<()> {
+        let temp_dir = assert_fs::TempDir::new()?;
+        let vault = Vault::new(temp_dir.path().to_path_buf())?;
+
+        assert_eq!(
+            "page",
+            vault.page_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Default
+            })
+        );
+        assert_eq!(
+            "page",
+            vault.page_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Journal
+            })
+        );
+
+        create_daily_notes_config(&temp_dir)?;
+
+        let vault = Vault {
+            config: config::Config::new(temp_dir.path())?,
+            ..vault
+        };
+
+        assert_eq!(
+            "page",
+            vault.page_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Default
+            })
+        );
+        assert_eq!(
+            "daily-notes/page",
+            vault.page_path(PageName {
+                name: "page".to_owned(),
+                kind: PageKind::Journal
+            })
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn creates_vault() -> Result<()> {
+        let temp_dir = assert_fs::TempDir::new()?.child("dir");
+        let vault = Vault::new(temp_dir.path().to_path_buf())?;
+
+        assert!(temp_dir.path().exists());
+        assert!(temp_dir.path().is_dir());
+        assert_eq!(temp_dir.path(), vault.path);
+
+        Ok(())
+    }
+
+    #[test]
+    fn update() -> Result<()> {
         let temp_dir = assert_fs::TempDir::new()?;
         let vault = Vault::new(temp_dir.path().to_path_buf())?;
         let name: PageName = "foo".to_string().into();
