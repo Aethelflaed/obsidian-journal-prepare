@@ -106,6 +106,10 @@ impl Preparer {
             self.from,
             self.to
         );
+        log::debug!("day options: {:?}", self.page_options.day);
+        log::debug!("week options: {:?}", self.page_options.week);
+        log::debug!("month options: {:?}", self.page_options.month);
+        log::debug!("year options: {:?}", self.page_options.year);
 
         let mut date: NaiveDate = self.from;
         let mut year = Year::from(date.year());

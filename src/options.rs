@@ -18,8 +18,12 @@ pub trait GenericSettings: Default + PartialEq {
     fn to_options(&self) -> Vec<Self::Option>;
 }
 
-pub trait GenericPage: Default {
+pub trait GenericPage: Default + PartialEq {
     type Settings: GenericSettings;
+
+    fn is_default(&self) -> bool {
+        self == &Self::default()
+    }
 
     fn help() -> &'static str;
     fn disabling_help() -> &'static str;
@@ -51,7 +55,6 @@ pub trait GenericPage: Default {
     }
 
     fn disabled() -> Self;
-    fn is_enabled(&self) -> bool;
 
     fn settings(&self) -> &Self::Settings;
     fn update(&mut self, settings: &Self::Settings);
@@ -102,25 +105,25 @@ pub struct PageOptions {
 
 impl PageOptions {
     pub fn update(&mut self, settings: &crate::vault::config::Settings) {
-        if self.day.is_enabled() && self.day.settings().is_empty() {
+        if self.day.is_default() {
             if let Some(ref day_settings) = settings.day {
                 self.day.update(day_settings);
             }
         }
 
-        if self.week.is_enabled() && self.week.settings().is_empty() {
+        if self.week.is_default() {
             if let Some(ref week_settings) = settings.week {
                 self.week.update(week_settings);
             }
         }
 
-        if self.month.is_enabled() && self.month.settings().is_empty() {
+        if self.week.is_default() {
             if let Some(ref month_settings) = settings.month {
                 self.month.update(month_settings);
             }
         }
 
-        if self.year.is_enabled() && self.year.settings().is_empty() {
+        if self.week.is_default() {
             if let Some(ref year_settings) = settings.year {
                 self.year.update(year_settings);
             }

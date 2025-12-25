@@ -12,9 +12,9 @@ pub enum Option {
     Nav,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Page {
-    enabled: bool,
+    default: bool,
     settings: Settings,
 }
 
@@ -68,7 +68,7 @@ impl From<&clap::ArgMatches> for Page {
             matches
                 .get_many::<Option>(Self::flag())
                 .map(|options| Page {
-                    enabled: true,
+                    default: false,
                     settings: Settings::from_iter(options),
                 })
                 .unwrap_or_default()
@@ -79,7 +79,7 @@ impl From<&clap::ArgMatches> for Page {
 impl Default for Page {
     fn default() -> Self {
         Page {
-            enabled: true,
+            default: true,
             settings: Settings {
                 week: true,
                 link_to_month: true,
@@ -94,7 +94,7 @@ impl GenericPage for Page {
 
     fn disabled() -> Self {
         Page {
-            enabled: false,
+            default: false,
             settings: Settings::default(),
         }
     }
@@ -111,10 +111,6 @@ impl GenericPage for Page {
     }
     fn disabling_flag() -> &'static str {
         "no-week-page"
-    }
-
-    fn is_enabled(&self) -> bool {
-        self.enabled
     }
 
     fn settings(&self) -> &Settings {
