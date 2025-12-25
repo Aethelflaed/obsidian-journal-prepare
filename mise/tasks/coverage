@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run tests with coverage report"
+
+set -eu -o pipefail
+
+cargo tarpaulin --out Html --output-dir coverage/
