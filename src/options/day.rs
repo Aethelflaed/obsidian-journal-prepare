@@ -76,11 +76,11 @@ impl<'a> FromIterator<&'a Option> for Settings {
 
 impl From<&clap::ArgMatches> for Page {
     fn from(matches: &clap::ArgMatches) -> Page {
-        if matches.get_flag("no_day_page") {
+        if matches.get_flag(Self::disabling_flag()) {
             Page::disabled()
         } else {
             matches
-                .get_many::<Option>("day_options")
+                .get_many::<Option>(Self::flag())
                 .map(|options| Page {
                     enabled: true,
                     settings: Settings::from_iter(options),
@@ -117,6 +117,16 @@ impl GenericPage for Page {
 
     fn help() -> &'static str {
         "Configure day pages"
+    }
+    fn disabling_help() -> &'static str {
+        "Do not update day pages"
+    }
+
+    fn flag() -> &'static str {
+        "day"
+    }
+    fn disabling_flag() -> &'static str {
+        "no-day-page"
     }
 
     fn is_enabled(&self) -> bool {

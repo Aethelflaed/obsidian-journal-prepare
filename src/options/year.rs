@@ -55,11 +55,11 @@ impl<'a> FromIterator<&'a Option> for Settings {
 
 impl From<&clap::ArgMatches> for Page {
     fn from(matches: &clap::ArgMatches) -> Page {
-        if matches.get_flag("no_year_page") {
+        if matches.get_flag(Self::disabling_flag()) {
             Page::disabled()
         } else {
             matches
-                .get_many::<Option>("year_options")
+                .get_many::<Option>(Self::flag())
                 .map(|options| Page {
                     enabled: true,
                     settings: Settings::from_iter(options),
@@ -93,6 +93,16 @@ impl GenericPage for Page {
 
     fn help() -> &'static str {
         "Configure year pages"
+    }
+    fn disabling_help() -> &'static str {
+        "Do not update year pages"
+    }
+
+    fn flag() -> &'static str {
+        "year"
+    }
+    fn disabling_flag() -> &'static str {
+        "no-year-page"
     }
 
     fn is_enabled(&self) -> bool {

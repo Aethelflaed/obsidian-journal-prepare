@@ -1,5 +1,6 @@
 use anyhow::Result;
 use chrono::NaiveDate;
+use clap::Arg;
 use std::path::PathBuf;
 
 pub mod day;
@@ -8,7 +9,7 @@ pub mod week;
 pub mod year;
 
 pub trait GenericSettings: Default + PartialEq {
-    type Option: clap::ValueEnum;
+    type Option: clap::ValueEnum + Clone + Send + Sync + 'static;
 
     fn is_empty(&self) -> bool {
         self == &Self::default()
@@ -21,6 +22,7 @@ pub trait GenericPage: Default {
     type Settings: GenericSettings;
 
     fn help() -> &'static str;
+    fn disabling_help() -> &'static str;
     fn default_long_help() -> String {
         <Self as Default>::default().long_help()
     }
@@ -40,7 +42,12 @@ pub trait GenericPage: Default {
             .collect::<Vec<String>>()
             .join(" ");
 
-        format!("{}\n\n[default: {}]", Self::help(), default_values)
+        format!(
+            "{}\n\nUse --{} instead to disable.\n\n[default: {}]",
+            Self::help(),
+            Self::disabling_flag(),
+            default_values
+        )
     }
 
     fn disabled() -> Self;
@@ -48,6 +55,34 @@ pub trait GenericPage: Default {
 
     fn settings(&self) -> &Self::Settings;
     fn update(&mut self, settings: &Self::Settings);
+
+    fn flag() -> &'static str;
+    fn disabling_flag() -> &'static str;
+
+    fn flag_short() -> Option<char> {
+        Self::flag().chars().next()
+    }
+
+    fn arg() -> Arg {
+        use clap::builder::EnumValueParser;
+
+        Arg::new(Self::flag())
+            .short(Self::flag_short())
+            .long(Self::flag())
+            .help(Self::help())
+            .long_help(Self::default_long_help())
+            .value_parser(EnumValueParser::<<Self::Settings as GenericSettings>::Option>::new())
+            .value_delimiter(',')
+            .action(clap::ArgAction::Append)
+    }
+
+    fn disabling_arg() -> Arg {
+        Arg::new(Self::disabling_flag())
+            .long(Self::disabling_flag())
+            .help(Self::disabling_help())
+            .action(clap::ArgAction::SetTrue)
+            .conflicts_with(Self::flag())
+    }
 }
 
 pub struct Options {
@@ -96,6 +131,13 @@ impl PageOptions {
 pub fn parse() -> Result<Options> {
     use clap::{arg, command, value_parser};
 
+    let from_help = "Only prepare journal start from given date";
+    let from_default = chrono::Utc::now().date_naive();
+    let from_long_help = format!("{}\n\n[default: {}]", from_help, from_default);
+
+    let to_help = "Only prepare journal start from given date";
+    let to_long_help = format!("{}\n\n[default: 1 month after --from]", to_help);
+
     let mut command = command!()
         .arg(arg!(verbose: -v --verbose ... "Increase logging verbosity"))
         .arg(arg!(quiet: -q --quiet ... "Decrease logging verbosity").conflicts_with("verbose"))
@@ -105,66 +147,34 @@ pub fn parse() -> Result<Options> {
                 .value_parser(value_parser!(std::path::PathBuf)),
         )
         .arg(
-            arg!(from: --from <DATE> "Only prepare journal starting from given date")
+            arg!(from: --from <DATE>)
+                .help(from_help)
+                .long_help(from_long_help)
                 .required(false)
                 .value_parser(value_parser!(NaiveDate)),
         )
         .arg(
             arg!(to: --to <DATE> "Only prepare journal up to given date")
+                .help(to_help)
+                .long_help(to_long_help)
                 .required(false)
                 .value_parser(value_parser!(NaiveDate)),
         )
-        .arg(
-            arg!(day_options: -d --day <DAY_OPTION> ...)
-                .value_parser(value_parser!(day::Option))
-                .value_delimiter(',')
-                .help(day::Page::help())
-                .long_help(day::Page::default_long_help()),
-        )
-        .arg(
-            arg!(no_day_page: --"no-day-page" "Do not update day pages")
-                .conflicts_with("day_options"),
-        )
-        .arg(
-            arg!(week_options: -w --week <WEEK_OPTION> ...)
-                .value_parser(value_parser!(week::Option))
-                .value_delimiter(',')
-                .help(week::Page::help())
-                .long_help(week::Page::default_long_help()),
-        )
-        .arg(
-            arg!(no_week_page: --"no-week-page" "Do not update week pages")
-                .conflicts_with("week_options"),
-        )
-        .arg(
-            arg!(month_options: -m --month <MONTH_OPTION> ...)
-                .value_parser(value_parser!(month::Option))
-                .value_delimiter(',')
-                .help(month::Page::help())
-                .long_help(month::Page::default_long_help()),
-        )
-        .arg(
-            arg!(no_month_page: --"no-month-page" "Do not update month pages")
-                .conflicts_with("month_options"),
-        )
-        .arg(
-            arg!(year_options: -y --year <YEAR_OPTION> ...)
-                .value_parser(value_parser!(year::Option))
-                .value_delimiter(',')
-                .help(year::Page::help())
-                .long_help(year::Page::default_long_help()),
-        )
-        .arg(
-            arg!(no_year_page: --"no-year-page" "Do not update year pages")
-                .conflicts_with("year_options"),
-        );
+        .arg(day::Page::arg())
+        .arg(day::Page::disabling_arg())
+        .arg(week::Page::arg())
+        .arg(week::Page::disabling_arg())
+        .arg(month::Page::arg())
+        .arg(month::Page::disabling_arg())
+        .arg(year::Page::arg())
+        .arg(year::Page::disabling_arg());
 
     let matches = command.get_matches_mut();
 
     let from = matches
         .get_one::<NaiveDate>("from")
         .cloned()
-        .unwrap_or(chrono::Utc::now().date_naive());
+        .unwrap_or(from_default);
     let to = matches
         .get_one::<NaiveDate>("to")
         .cloned()

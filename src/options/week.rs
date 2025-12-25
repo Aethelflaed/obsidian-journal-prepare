@@ -62,11 +62,11 @@ impl<'a> FromIterator<&'a Option> for Settings {
 
 impl From<&clap::ArgMatches> for Page {
     fn from(matches: &clap::ArgMatches) -> Page {
-        if matches.get_flag("no_week_page") {
+        if matches.get_flag(Self::disabling_flag()) {
             Page::disabled()
         } else {
             matches
-                .get_many::<Option>("week_options")
+                .get_many::<Option>(Self::flag())
                 .map(|options| Page {
                     enabled: true,
                     settings: Settings::from_iter(options),
@@ -101,6 +101,16 @@ impl GenericPage for Page {
 
     fn help() -> &'static str {
         "Configure week pages"
+    }
+    fn disabling_help() -> &'static str {
+        "Do not update week pages"
+    }
+
+    fn flag() -> &'static str {
+        "week"
+    }
+    fn disabling_flag() -> &'static str {
+        "no-week-page"
     }
 
     fn is_enabled(&self) -> bool {
