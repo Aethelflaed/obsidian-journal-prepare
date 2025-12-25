@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Format and lint"
+
+set -eu -o pipefail
+
+cargo fmt
+cargo clippy --all-targets
