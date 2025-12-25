@@ -2,7 +2,7 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, ValueEnum)]
-pub enum DayOption {
+pub enum Option {
     /// Add property day of week
     Day,
     /// Add property link to week
@@ -52,7 +52,7 @@ impl From<&clap::ArgMatches> for Page {
             Page::disabled()
         } else {
             matches
-                .get_many::<DayOption>("day_options")
+                .get_many::<Option>("day_options")
                 .map(|options| {
                     let mut page = Page {
                         enabled: true,
@@ -125,22 +125,22 @@ impl Page {
         self.events
     }
 
-    pub fn to_options(&self) -> Vec<DayOption> {
+    pub fn to_options(&self) -> Vec<Option> {
         let mut options = vec![];
         if self.day_of_week {
-            options.push(DayOption::Day);
+            options.push(Option::Day);
         }
         if self.link_to_week {
-            options.push(DayOption::Week);
+            options.push(Option::Week);
         }
         if self.link_to_month {
-            options.push(DayOption::Month);
+            options.push(Option::Month);
         }
         if self.nav_link {
-            options.push(DayOption::Nav);
+            options.push(Option::Nav);
         }
         if self.events {
-            options.push(DayOption::Events);
+            options.push(Option::Events);
         }
         options
     }
@@ -173,13 +173,13 @@ impl Page {
         self.events = settings.events;
     }
 
-    fn add_option(&mut self, option: &DayOption) {
+    fn add_option(&mut self, option: &Option) {
         match option {
-            DayOption::Day => self.day_of_week = true,
-            DayOption::Week => self.link_to_week = true,
-            DayOption::Month => self.link_to_month = true,
-            DayOption::Nav => self.nav_link = true,
-            DayOption::Events => self.events = true,
+            Option::Day => self.day_of_week = true,
+            Option::Week => self.link_to_week = true,
+            Option::Month => self.link_to_month = true,
+            Option::Nav => self.nav_link = true,
+            Option::Events => self.events = true,
         }
     }
 }

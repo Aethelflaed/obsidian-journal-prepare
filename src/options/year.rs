@@ -2,7 +2,7 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, ValueEnum)]
-pub enum YearOption {
+pub enum Option {
     /// Add link to months
     Month,
     /// Add property links to previous and next year
@@ -37,7 +37,7 @@ impl From<&clap::ArgMatches> for Page {
             Page::disabled()
         } else {
             matches
-                .get_many::<YearOption>("year_options")
+                .get_many::<Option>("year_options")
                 .map(|options| {
                     let mut page = Page {
                         enabled: true,
@@ -88,13 +88,13 @@ impl Page {
         self.nav_link
     }
 
-    pub fn to_options(&self) -> Vec<YearOption> {
+    pub fn to_options(&self) -> Vec<Option> {
         let mut options = vec![];
         if self.month {
-            options.push(YearOption::Month);
+            options.push(Option::Month);
         }
         if self.nav_link {
-            options.push(YearOption::Nav);
+            options.push(Option::Nav);
         }
         options
     }
@@ -124,10 +124,10 @@ impl Page {
         self.nav_link = settings.nav_link;
     }
 
-    fn add_option(&mut self, option: &YearOption) {
+    fn add_option(&mut self, option: &Option) {
         match option {
-            YearOption::Month => self.month = true,
-            YearOption::Nav => self.nav_link = true,
+            Option::Month => self.month = true,
+            Option::Nav => self.nav_link = true,
         }
     }
 }

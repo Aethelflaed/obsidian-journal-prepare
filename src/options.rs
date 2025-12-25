@@ -6,10 +6,6 @@ pub mod day;
 pub mod month;
 pub mod week;
 pub mod year;
-use day::DayOption;
-use month::MonthOption;
-use week::WeekOption;
-use year::YearOption;
 
 pub struct Options {
     pub from: NaiveDate,
@@ -77,7 +73,7 @@ pub fn parse() -> Result<Options> {
         )
         .arg(
             arg!(day_options: -d --day <DAY_OPTION> ...)
-                .value_parser(value_parser!(DayOption))
+                .value_parser(value_parser!(day::Option))
                 .value_delimiter(',')
                 .help(day::Page::help())
                 .long_help(day::Page::default().long_help()),
@@ -88,7 +84,7 @@ pub fn parse() -> Result<Options> {
         )
         .arg(
             arg!(week_options: -w --week <WEEK_OPTION> ...)
-                .value_parser(value_parser!(WeekOption))
+                .value_parser(value_parser!(week::Option))
                 .value_delimiter(',')
                 .help(week::Page::help())
                 .long_help(week::Page::default().long_help()),
@@ -99,7 +95,7 @@ pub fn parse() -> Result<Options> {
         )
         .arg(
             arg!(month_options: -m --month <MONTH_OPTION> ...)
-                .value_parser(value_parser!(MonthOption))
+                .value_parser(value_parser!(month::Option))
                 .value_delimiter(',')
                 .help(month::Page::help())
                 .long_help(month::Page::default().long_help()),
@@ -110,7 +106,7 @@ pub fn parse() -> Result<Options> {
         )
         .arg(
             arg!(year_options: -y --year <YEAR_OPTION> ...)
-                .value_parser(value_parser!(YearOption))
+                .value_parser(value_parser!(year::Option))
                 .value_delimiter(',')
                 .help(year::Page::help())
                 .long_help(year::Page::default().long_help()),

@@ -2,7 +2,7 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, ValueEnum)]
-pub enum WeekOption {
+pub enum Option {
     /// Add embedded week days
     Week,
     /// Add property link to month
@@ -42,7 +42,7 @@ impl From<&clap::ArgMatches> for Page {
             Page::disabled()
         } else {
             matches
-                .get_many::<WeekOption>("week_options")
+                .get_many::<Option>("week_options")
                 .map(|options| {
                     let mut page = Page {
                         enabled: true,
@@ -99,16 +99,16 @@ impl Page {
         self.nav_link
     }
 
-    pub fn to_options(&self) -> Vec<WeekOption> {
+    pub fn to_options(&self) -> Vec<Option> {
         let mut options = vec![];
         if self.week {
-            options.push(WeekOption::Week);
+            options.push(Option::Week);
         }
         if self.link_to_month {
-            options.push(WeekOption::Month);
+            options.push(Option::Month);
         }
         if self.nav_link {
-            options.push(WeekOption::Nav);
+            options.push(Option::Nav);
         }
         options
     }
@@ -139,11 +139,11 @@ impl Page {
         self.nav_link = settings.nav_link;
     }
 
-    fn add_option(&mut self, option: &WeekOption) {
+    fn add_option(&mut self, option: &Option) {
         match option {
-            WeekOption::Week => self.week = true,
-            WeekOption::Month => self.link_to_month = true,
-            WeekOption::Nav => self.nav_link = true,
+            Option::Week => self.week = true,
+            Option::Month => self.link_to_month = true,
+            Option::Nav => self.nav_link = true,
         }
     }
 }
