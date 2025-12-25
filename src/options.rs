@@ -7,6 +7,49 @@ pub mod month;
 pub mod week;
 pub mod year;
 
+pub trait GenericSettings: Default + PartialEq {
+    type Option: clap::ValueEnum;
+
+    fn is_empty(&self) -> bool {
+        self == &Self::default()
+    }
+
+    fn to_options(&self) -> Vec<Self::Option>;
+}
+
+pub trait GenericPage: Default {
+    type Settings: GenericSettings;
+
+    fn help() -> &'static str;
+    fn default_long_help() -> String {
+        <Self as Default>::default().long_help()
+    }
+    fn long_help(&self) -> String {
+        use clap::ValueEnum;
+
+        let default_values = self
+            .settings()
+            .to_options()
+            .into_iter()
+            .map(|opt| {
+                opt.to_possible_value()
+                    .expect("option to have possible value")
+                    .get_name()
+                    .to_owned()
+            })
+            .collect::<Vec<String>>()
+            .join(" ");
+
+        format!("{}\n\n[default: {}]", Self::help(), default_values)
+    }
+
+    fn disabled() -> Self;
+    fn is_enabled(&self) -> bool;
+
+    fn settings(&self) -> &Self::Settings;
+    fn update(&mut self, settings: &Self::Settings);
+}
+
 pub struct Options {
     pub from: NaiveDate,
     pub to: NaiveDate,
@@ -24,25 +67,25 @@ pub struct PageOptions {
 
 impl PageOptions {
     pub fn update(&mut self, settings: &crate::vault::config::Settings) {
-        if self.day.is_enabled() && self.day.is_empty() {
+        if self.day.is_enabled() && self.day.settings().is_empty() {
             if let Some(ref day_settings) = settings.day {
                 self.day.update(day_settings);
             }
         }
 
-        if self.week.is_enabled() && self.week.is_empty() {
+        if self.week.is_enabled() && self.week.settings().is_empty() {
             if let Some(ref week_settings) = settings.week {
                 self.week.update(week_settings);
             }
         }
 
-        if self.month.is_enabled() && self.month.is_empty() {
+        if self.month.is_enabled() && self.month.settings().is_empty() {
             if let Some(ref month_settings) = settings.month {
                 self.month.update(month_settings);
             }
         }
 
-        if self.year.is_enabled() && self.year.is_empty() {
+        if self.year.is_enabled() && self.year.settings().is_empty() {
             if let Some(ref year_settings) = settings.year {
                 self.year.update(year_settings);
             }
@@ -76,7 +119,7 @@ pub fn parse() -> Result<Options> {
                 .value_parser(value_parser!(day::Option))
                 .value_delimiter(',')
                 .help(day::Page::help())
-                .long_help(day::Page::default().long_help()),
+                .long_help(day::Page::default_long_help()),
         )
         .arg(
             arg!(no_day_page: --"no-day-page" "Do not update day pages")
@@ -87,7 +130,7 @@ pub fn parse() -> Result<Options> {
                 .value_parser(value_parser!(week::Option))
                 .value_delimiter(',')
                 .help(week::Page::help())
-                .long_help(week::Page::default().long_help()),
+                .long_help(week::Page::default_long_help()),
         )
         .arg(
             arg!(no_week_page: --"no-week-page" "Do not update week pages")
@@ -98,7 +141,7 @@ pub fn parse() -> Result<Options> {
                 .value_parser(value_parser!(month::Option))
                 .value_delimiter(',')
                 .help(month::Page::help())
-                .long_help(month::Page::default().long_help()),
+                .long_help(month::Page::default_long_help()),
         )
         .arg(
             arg!(no_month_page: --"no-month-page" "Do not update month pages")
@@ -109,7 +152,7 @@ pub fn parse() -> Result<Options> {
                 .value_parser(value_parser!(year::Option))
                 .value_delimiter(',')
                 .help(year::Page::help())
-                .long_help(year::Page::default().long_help()),
+                .long_help(year::Page::default_long_help()),
         )
         .arg(
             arg!(no_year_page: --"no-year-page" "Do not update year pages")

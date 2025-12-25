@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::{Datelike, Days, IsoWeek, NaiveDate, Weekday};
 
 mod options;
+use options::{GenericPage, GenericSettings};
 
 mod page;
 
@@ -142,16 +143,17 @@ impl Preparer {
     }
 
     fn print_year(&self, year: Year) -> Result<()> {
-        if self.page_options.year.is_empty() {
+        let settings = self.page_options.year.settings();
+        if settings.is_empty() {
             return Ok(());
         }
 
         self.vault.update(year, |mut page| {
-            if self.page_options.year.nav_link() {
+            if settings.nav_link {
                 page.push_metadata(year.next().to_link(&self.vault).to_metadata("next"));
                 page.push_metadata(year.prev().to_link(&self.vault).to_metadata("prev"));
             }
-            if self.page_options.year.month() {
+            if settings.month {
                 for month in year.iter() {
                     page.push_content(month.to_link(&self.vault));
                 }
@@ -162,16 +164,17 @@ impl Preparer {
     }
 
     fn print_month(&self, month: Month) -> Result<()> {
-        if self.page_options.month.is_empty() {
+        let settings = self.page_options.month.settings();
+        if settings.is_empty() {
             return Ok(());
         }
 
         self.vault.update(month, |mut page| {
-            if self.page_options.month.nav_link() {
+            if settings.nav_link {
                 page.push_metadata(month.next().to_link(&self.vault).to_metadata("next"));
                 page.push_metadata(month.prev().to_link(&self.vault).to_metadata("prev"));
             }
-            if self.page_options.month.month() {
+            if settings.month {
                 for (index, date) in month.iter().enumerate() {
                     if index == 0 || date.weekday() == Weekday::Mon {
                         page.push_content(format!("#### {}", date.iso_week().to_link(&self.vault)));
@@ -189,19 +192,20 @@ impl Preparer {
     }
 
     fn print_week(&self, week: IsoWeek) -> Result<()> {
-        if self.page_options.week.is_empty() {
+        let settings = self.page_options.week.settings();
+        if settings.is_empty() {
             return Ok(());
         }
 
         self.vault.update(week, |mut page| {
-            if self.page_options.week.link_to_month() {
+            if settings.link_to_month {
                 page.push_metadata(Month::from(week).to_link(&self.vault).to_metadata("month"));
             }
-            if self.page_options.week.nav_link() {
+            if settings.nav_link {
                 page.push_metadata(week.next().to_link(&self.vault).to_metadata("next"));
                 page.push_metadata(week.prev().to_link(&self.vault).to_metadata("prev"));
             }
-            if self.page_options.week.week() {
+            if settings.week {
                 for date in week.iter() {
                     page.push_content(format!(
                         "- {} {}",
@@ -216,25 +220,26 @@ impl Preparer {
     }
 
     fn print_day(&self, date: NaiveDate) -> Result<()> {
-        if self.page_options.day.is_empty() {
+        let settings = self.page_options.day.settings();
+        if settings.is_empty() {
             return Ok(());
         }
 
         self.vault.update(date, |mut page| {
-            if self.page_options.day.day_of_week() {
+            if settings.day_of_week {
                 page.push_metadata(weekday(date).to_metadata("day"));
             }
-            if self.page_options.day.link_to_week() {
+            if settings.link_to_week {
                 page.push_metadata(date.iso_week().to_link(&self.vault).to_metadata("week"));
             }
-            if self.page_options.day.link_to_month() {
+            if settings.link_to_month {
                 page.push_metadata(Month::from(date).to_link(&self.vault).to_metadata("month"));
             }
-            if self.page_options.day.nav_link() {
+            if settings.nav_link {
                 page.push_metadata(date.next().to_link(&self.vault).to_metadata("next"));
                 page.push_metadata(date.prev().to_link(&self.vault).to_metadata("prev"));
             }
-            if self.page_options.day.events() {
+            if settings.events {
                 for event in self.vault.events() {
                     if event.matches(date) {
                         page.push_content(&event.content);

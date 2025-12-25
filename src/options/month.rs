@@ -1,3 +1,4 @@
+use crate::options::{GenericPage, GenericSettings};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
@@ -12,22 +13,43 @@ pub enum Option {
 #[derive(Debug)]
 pub struct Page {
     enabled: bool,
-    month: bool,
-    nav_link: bool,
+    settings: Settings,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
     pub month: bool,
     pub nav_link: bool,
 }
 
-impl From<Page> for Settings {
-    fn from(page: Page) -> Self {
-        Settings {
-            month: page.month,
-            nav_link: page.nav_link,
+impl GenericSettings for Settings {
+    type Option = Option;
+
+    fn to_options(&self) -> Vec<Option> {
+        let mut options = vec![];
+        if self.month {
+            options.push(Option::Month);
         }
+        if self.nav_link {
+            options.push(Option::Nav);
+        }
+        options
+    }
+}
+
+impl<'a> FromIterator<&'a Option> for Settings {
+    fn from_iter<T>(options: T) -> Self
+    where
+        T: IntoIterator<Item = &'a Option>,
+    {
+        let mut settings = Settings::default();
+        for option in options {
+            match option {
+                Option::Month => settings.month = true,
+                Option::Nav => settings.nav_link = true,
+            }
+        }
+        settings
     }
 }
 
@@ -38,15 +60,9 @@ impl From<&clap::ArgMatches> for Page {
         } else {
             matches
                 .get_many::<Option>("month_options")
-                .map(|options| {
-                    let mut page = Page {
-                        enabled: true,
-                        ..Page::disabled()
-                    };
-                    for option in options {
-                        page.add_option(option);
-                    }
-                    page
+                .map(|options| Page {
+                    enabled: true,
+                    settings: Settings::from_iter(options),
                 })
                 .unwrap_or_default()
         }
@@ -57,77 +73,37 @@ impl Default for Page {
     fn default() -> Self {
         Page {
             enabled: true,
-            month: true,
-            nav_link: true,
+            settings: Settings {
+                month: true,
+                nav_link: true,
+            },
         }
     }
 }
 
-impl Page {
-    pub fn disabled() -> Self {
+impl GenericPage for Page {
+    type Settings = Settings;
+
+    fn disabled() -> Self {
         Page {
             enabled: false,
-            month: false,
-            nav_link: false,
+            settings: Settings::default(),
         }
     }
 
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn is_empty(&self) -> bool {
-        !(self.month || self.nav_link)
-    }
-
-    pub fn month(&self) -> bool {
-        self.month
-    }
-
-    pub fn nav_link(&self) -> bool {
-        self.nav_link
-    }
-
-    pub fn to_options(&self) -> Vec<Option> {
-        let mut options = vec![];
-        if self.month {
-            options.push(Option::Month);
-        }
-        if self.nav_link {
-            options.push(Option::Nav);
-        }
-        options
-    }
-
-    pub fn help() -> &'static str {
+    fn help() -> &'static str {
         "Configure month pages"
     }
 
-    pub fn long_help(&self) -> String {
-        let default_values = self
-            .to_options()
-            .into_iter()
-            .map(|opt| {
-                opt.to_possible_value()
-                    .expect("option to have possible value")
-                    .get_name()
-                    .to_owned()
-            })
-            .collect::<Vec<String>>()
-            .join(" ");
-
-        format!("{}\n\n[default: {}]", Self::help(), default_values)
+    fn is_enabled(&self) -> bool {
+        self.enabled
     }
 
-    pub fn update(&mut self, settings: &Settings) {
-        self.month = settings.month;
-        self.nav_link = settings.nav_link;
+    fn settings(&self) -> &Settings {
+        &self.settings
     }
 
-    fn add_option(&mut self, option: &Option) {
-        match option {
-            Option::Month => self.month = true,
-            Option::Nav => self.nav_link = true,
-        }
+    fn update(&mut self, settings: &Settings) {
+        self.settings = settings.clone();
     }
 }
