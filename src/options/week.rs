@@ -121,3 +121,121 @@ impl GenericPage for Page {
         self.settings = settings.clone();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::{ArgMatches, Command};
+    use std::ffi::OsString;
+
+    fn cmd<I, T>(args_iter: I) -> Result<ArgMatches, clap::error::Error>
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<OsString> + Clone,
+    {
+        Command::new("test")
+            .no_binary_name(true)
+            .arg(Page::arg())
+            .arg(Page::disabling_arg())
+            .try_get_matches_from(args_iter)
+    }
+
+    #[test]
+    fn flag_week_nav() -> anyhow::Result<()> {
+        let matches = cmd(["--week", "nav"])?;
+        let page = Page::from(&matches);
+
+        assert!(!page.default);
+        assert!(!page.settings().week);
+        assert!(!page.settings().link_to_month);
+        assert!(page.settings().nav_link);
+
+        Ok(())
+    }
+
+    #[test]
+    fn flag_week_month() -> anyhow::Result<()> {
+        let matches = cmd(["--week", "month"])?;
+        let page = Page::from(&matches);
+
+        assert!(!page.default);
+        assert!(!page.settings().week);
+        assert!(page.settings().link_to_month);
+        assert!(!page.settings().nav_link);
+
+        Ok(())
+    }
+
+    #[test]
+    fn flag_week_week() -> anyhow::Result<()> {
+        let matches = cmd(["--week", "week"])?;
+        let page = Page::from(&matches);
+
+        assert!(!page.default);
+        assert!(page.settings().week);
+        assert!(!page.settings().link_to_month);
+        assert!(!page.settings().nav_link);
+
+        Ok(())
+    }
+
+    #[test]
+    fn all_flag_week() -> anyhow::Result<()> {
+        let matches = cmd(["--week", "nav", "--week", "month", "--week", "week"])?;
+        let page = Page::from(&matches);
+
+        assert!(!page.default);
+        assert!(!page.is_default());
+        assert!(page.settings().week);
+        assert!(page.settings().link_to_month);
+        assert!(page.settings().nav_link);
+
+        Ok(())
+    }
+
+    #[test]
+    fn all_flag_week_csv() -> anyhow::Result<()> {
+        let matches = cmd(["--week", "nav,month,week"])?;
+        let page = Page::from(&matches);
+
+        assert!(!page.default);
+        assert!(!page.is_default());
+        assert!(page.settings().week);
+        assert!(page.settings().link_to_month);
+        assert!(page.settings().nav_link);
+
+        Ok(())
+    }
+
+    #[test]
+    fn flag_absence_produces_default_page() -> anyhow::Result<()> {
+        let matches = cmd(Vec::<&str>::new())?;
+        let page = Page::from(&matches);
+        assert!(page.is_default());
+
+        Ok(())
+    }
+
+    #[test]
+    fn flag_requires_argument() {
+        assert!(cmd(["--week", "nav"]).is_ok());
+        assert!(cmd(["--week"]).is_err());
+    }
+
+    #[test]
+    fn disabling_flag_produces_disabled_page() -> anyhow::Result<()> {
+        let matches = cmd(["--no-week-page"])?;
+        let page = Page::from(&matches);
+        assert!(!page.is_default());
+        assert!(page.settings().is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn both_flags_are_exclusive() {
+        assert!(cmd(["--week", "nav"]).is_ok());
+        assert!(cmd(["--no-week-page"]).is_ok());
+        assert!(cmd(["--no-week-page", "--week", "nav"]).is_err());
+    }
+}

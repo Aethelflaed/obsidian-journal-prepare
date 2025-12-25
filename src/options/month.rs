@@ -113,3 +113,104 @@ impl GenericPage for Page {
         self.settings = settings.clone();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::{ArgMatches, Command};
+    use std::ffi::OsString;
+
+    fn cmd<I, T>(args_iter: I) -> Result<ArgMatches, clap::error::Error>
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<OsString> + Clone,
+    {
+        Command::new("test")
+            .no_binary_name(true)
+            .arg(Page::arg())
+            .arg(Page::disabling_arg())
+            .try_get_matches_from(args_iter)
+    }
+
+    #[test]
+    fn flag_month_nav() -> anyhow::Result<()> {
+        let matches = cmd(["--month", "nav"])?;
+        let page = Page::from(&matches);
+
+        assert!(!page.default);
+        assert!(!page.settings().month);
+        assert!(page.settings().nav_link);
+
+        Ok(())
+    }
+
+    #[test]
+    fn flag_month_month() -> anyhow::Result<()> {
+        let matches = cmd(["--month", "month"])?;
+        let page = Page::from(&matches);
+
+        assert!(!page.default);
+        assert!(page.settings().month);
+        assert!(!page.settings().nav_link);
+
+        Ok(())
+    }
+
+    #[test]
+    fn all_flag_month() -> anyhow::Result<()> {
+        let matches = cmd(["--month", "nav", "--month", "month"])?;
+        let page = Page::from(&matches);
+
+        assert!(!page.default);
+        assert!(!page.is_default());
+        assert!(page.settings().month);
+        assert!(page.settings().nav_link);
+
+        Ok(())
+    }
+
+    #[test]
+    fn all_flag_month_csv() -> anyhow::Result<()> {
+        let matches = cmd(["--month", "nav,month"])?;
+        let page = Page::from(&matches);
+
+        assert!(!page.default);
+        assert!(!page.is_default());
+        assert!(page.settings().month);
+        assert!(page.settings().nav_link);
+
+        Ok(())
+    }
+
+    #[test]
+    fn flag_absence_produces_default_page() -> anyhow::Result<()> {
+        let matches = cmd(Vec::<&str>::new())?;
+        let page = Page::from(&matches);
+        assert!(page.is_default());
+
+        Ok(())
+    }
+
+    #[test]
+    fn flag_requires_argument() {
+        assert!(cmd(["--month", "nav"]).is_ok());
+        assert!(cmd(["--month"]).is_err());
+    }
+
+    #[test]
+    fn disabling_flag_produces_disabled_page() -> anyhow::Result<()> {
+        let matches = cmd(["--no-month-page"])?;
+        let page = Page::from(&matches);
+        assert!(!page.is_default());
+        assert!(page.settings().is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn both_flags_are_exclusive() {
+        assert!(cmd(["--month", "nav"]).is_ok());
+        assert!(cmd(["--no-month-page"]).is_ok());
+        assert!(cmd(["--no-month-page", "--month", "nav"]).is_err());
+    }
+}
