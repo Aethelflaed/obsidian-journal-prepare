@@ -1,6 +1,7 @@
 use anyhow::Result;
 use chrono::NaiveDate;
 use clap::Arg;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub mod day;
@@ -96,6 +97,7 @@ pub struct Options {
     pub page_options: PageOptions,
 }
 
+#[derive(Debug, Default)]
 pub struct PageOptions {
     pub day: day::Page,
     pub week: week::Page,
@@ -103,35 +105,58 @@ pub struct PageOptions {
     pub year: year::Page,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct PageSettings {
+    #[serde(default)]
+    pub day: Option<day::Settings>,
+    #[serde(default)]
+    pub week: Option<week::Settings>,
+    #[serde(default)]
+    pub month: Option<month::Settings>,
+    #[serde(default)]
+    pub year: Option<year::Settings>,
+}
+
 impl PageOptions {
-    pub fn update(&mut self, settings: &crate::vault::config::Settings) {
+    pub fn update(&mut self, settings: &PageSettings) {
         if self.day.is_default() {
-            if let Some(ref day_settings) = settings.day {
+            if let Some(day_settings) = settings.day.as_ref() {
                 self.day.update(day_settings);
             }
         }
 
         if self.week.is_default() {
-            if let Some(ref week_settings) = settings.week {
+            if let Some(week_settings) = settings.week.as_ref() {
                 self.week.update(week_settings);
             }
         }
 
-        if self.week.is_default() {
-            if let Some(ref month_settings) = settings.month {
+        if self.month.is_default() {
+            if let Some(month_settings) = settings.month.as_ref() {
                 self.month.update(month_settings);
             }
         }
 
-        if self.week.is_default() {
-            if let Some(ref year_settings) = settings.year {
+        if self.year.is_default() {
+            if let Some(year_settings) = settings.year.as_ref() {
                 self.year.update(year_settings);
             }
         }
     }
 }
 
-pub fn parse() -> Result<Options> {
+impl From<&clap::ArgMatches> for PageOptions {
+    fn from(matches: &clap::ArgMatches) -> PageOptions {
+        PageOptions {
+            day: day::Page::from(matches),
+            week: week::Page::from(matches),
+            month: month::Page::from(matches),
+            year: year::Page::from(matches),
+        }
+    }
+}
+
+pub fn command() -> clap::Command {
     use clap::{arg, command, value_parser};
 
     let from_help = "Only prepare journal start from given date";
@@ -141,7 +166,7 @@ pub fn parse() -> Result<Options> {
     let to_help = "Only prepare journal start from given date";
     let to_long_help = format!("{}\n\n[default: 1 month after --from]", to_help);
 
-    let mut command = command!()
+    command!()
         .arg(arg!(verbose: -v --verbose ... "Increase logging verbosity"))
         .arg(arg!(quiet: -q --quiet ... "Decrease logging verbosity").conflicts_with("verbose"))
         .arg(
@@ -170,10 +195,14 @@ pub fn parse() -> Result<Options> {
         .arg(month::Page::arg())
         .arg(month::Page::disabling_arg())
         .arg(year::Page::arg())
-        .arg(year::Page::disabling_arg());
+        .arg(year::Page::disabling_arg())
+}
 
+pub fn parse() -> Result<Options> {
+    let mut command = command();
     let matches = command.get_matches_mut();
 
+    let from_default = chrono::Utc::now().date_naive();
     let from = matches
         .get_one::<NaiveDate>("from")
         .cloned()
@@ -192,17 +221,15 @@ pub fn parse() -> Result<Options> {
             .exit();
     }
 
-    let day_options = day::Page::from(&matches);
-    let week_options = week::Page::from(&matches);
-    let month_options = month::Page::from(&matches);
-    let year_options = year::Page::from(&matches);
+    let page_options = PageOptions::from(&matches);
 
     let path = matches
         .get_one::<std::path::PathBuf>("path")
         .expect("'PATH' is required and parsing will fail if its missing")
         .clone();
 
-    let log_level_filter = clap_verbosity_flag::Verbosity::<clap_verbosity_flag::ErrorLevel>::new(
+    use clap_verbosity_flag::{ErrorLevel, Verbosity};
+    let log_level_filter = Verbosity::<ErrorLevel>::new(
         matches.get_one::<u8>("verbose").cloned().unwrap_or(0u8),
         matches.get_one::<u8>("quiet").cloned().unwrap_or(0u8),
     )
@@ -213,11 +240,319 @@ pub fn parse() -> Result<Options> {
         to,
         path,
         log_level_filter,
-        page_options: PageOptions {
-            day: day_options,
-            week: week_options,
-            month: month_options,
-            year: year_options,
-        },
+        page_options,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::ArgMatches;
+    use std::ffi::OsString;
+
+    fn cmd<I, T>(args_iter: I) -> Result<ArgMatches, clap::error::Error>
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<OsString> + Clone,
+    {
+        command()
+            .no_binary_name(true)
+            .try_get_matches_from(args_iter)
+    }
+
+    #[test]
+    fn update_page_options_day_does_not_override_flags() -> anyhow::Result<()> {
+        let matches = cmd(["--path", ".", "--day", "day,week"])?;
+        let mut page_options = PageOptions::from(&matches);
+
+        let page_settings = PageSettings {
+            day: Some(day::Settings::default()),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.day.is_default());
+        assert!(page_options.day.settings().day_of_week);
+        Ok(())
+    }
+
+    #[test]
+    fn update_page_options_day_does_not_override_disabling_flag() -> anyhow::Result<()> {
+        let matches = cmd(["--path", ".", "--no-day-page"])?;
+        let mut page_options = PageOptions::from(&matches);
+
+        let page_settings = PageSettings {
+            day: Some(day::Settings {
+                day_of_week: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.day.is_default());
+        assert!(!page_options.day.settings().day_of_week);
+        Ok(())
+    }
+
+    #[test]
+    fn update_page_options_day_with_empty_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings::default();
+
+        page_options.update(&page_settings);
+        assert!(page_options.day.is_default());
+        assert!(page_options.day.settings().day_of_week);
+    }
+
+    #[test]
+    fn update_page_options_day_with_some_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings {
+            day: Some(day::Settings::default()),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.day.is_default());
+        assert!(!page_options.day.settings().day_of_week);
+    }
+
+    #[test]
+    fn update_page_options_day_with_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings {
+            day: Some(day::Settings {
+                day_of_week: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.day.is_default());
+        assert!(page_options.day.settings().day_of_week);
+    }
+
+    #[test]
+    fn update_page_options_week_does_not_override_flags() -> anyhow::Result<()> {
+        let matches = cmd(["--path", ".", "--week", "week,month"])?;
+        let mut page_options = PageOptions::from(&matches);
+
+        let page_settings = PageSettings {
+            week: Some(week::Settings::default()),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.week.is_default());
+        assert!(page_options.week.settings().link_to_month);
+        Ok(())
+    }
+
+    #[test]
+    fn update_page_options_week_does_not_override_disabling_flag() -> anyhow::Result<()> {
+        let matches = cmd(["--path", ".", "--no-week-page"])?;
+        let mut page_options = PageOptions::from(&matches);
+
+        let page_settings = PageSettings {
+            week: Some(week::Settings {
+                link_to_month: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.week.is_default());
+        assert!(!page_options.week.settings().link_to_month);
+        Ok(())
+    }
+
+    #[test]
+    fn update_page_options_week_with_empty_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings::default();
+
+        page_options.update(&page_settings);
+        assert!(page_options.week.is_default());
+        assert!(page_options.week.settings().link_to_month);
+    }
+
+    #[test]
+    fn update_page_options_week_with_some_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings {
+            week: Some(week::Settings::default()),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.week.is_default());
+        assert!(!page_options.week.settings().link_to_month);
+    }
+
+    #[test]
+    fn update_page_options_week_with_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings {
+            week: Some(week::Settings {
+                link_to_month: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.week.is_default());
+        assert!(page_options.week.settings().link_to_month);
+    }
+
+    #[test]
+    fn update_page_options_month_does_not_override_flags() -> anyhow::Result<()> {
+        let matches = cmd(["--path", ".", "--month", "nav"])?;
+        let mut page_options = PageOptions::from(&matches);
+
+        let page_settings = PageSettings {
+            month: Some(month::Settings::default()),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.month.is_default());
+        assert!(page_options.month.settings().nav_link);
+        Ok(())
+    }
+
+    #[test]
+    fn update_page_options_month_does_not_override_disabling_flag() -> anyhow::Result<()> {
+        let matches = cmd(["--path", ".", "--no-month-page"])?;
+        let mut page_options = PageOptions::from(&matches);
+
+        let page_settings = PageSettings {
+            month: Some(month::Settings {
+                nav_link: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.month.is_default());
+        assert!(!page_options.month.settings().nav_link);
+        Ok(())
+    }
+
+    #[test]
+    fn update_page_options_month_with_empty_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings::default();
+
+        page_options.update(&page_settings);
+        assert!(page_options.month.is_default());
+        assert!(page_options.month.settings().nav_link);
+    }
+
+    #[test]
+    fn update_page_options_month_with_some_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings {
+            month: Some(month::Settings::default()),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.month.is_default());
+        assert!(!page_options.month.settings().nav_link);
+    }
+
+    #[test]
+    fn update_page_options_month_with_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings {
+            month: Some(month::Settings {
+                nav_link: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.month.is_default());
+        assert!(page_options.month.settings().nav_link);
+    }
+
+    #[test]
+    fn update_page_options_year_does_not_override_flags() -> anyhow::Result<()> {
+        let matches = cmd(["--path", ".", "--year", "nav"])?;
+        let mut page_options = PageOptions::from(&matches);
+
+        let page_settings = PageSettings {
+            year: Some(year::Settings::default()),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.year.is_default());
+        assert!(page_options.year.settings().nav_link);
+        Ok(())
+    }
+
+    #[test]
+    fn update_page_options_year_does_not_override_disabling_flag() -> anyhow::Result<()> {
+        let matches = cmd(["--path", ".", "--no-year-page"])?;
+        let mut page_options = PageOptions::from(&matches);
+
+        let page_settings = PageSettings {
+            year: Some(year::Settings {
+                nav_link: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.year.is_default());
+        assert!(!page_options.year.settings().nav_link);
+        Ok(())
+    }
+
+    #[test]
+    fn update_page_options_year_with_empty_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings::default();
+
+        page_options.update(&page_settings);
+        assert!(page_options.year.is_default());
+        assert!(page_options.year.settings().nav_link);
+    }
+
+    #[test]
+    fn update_page_options_year_with_some_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings {
+            year: Some(year::Settings::default()),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.year.is_default());
+        assert!(!page_options.year.settings().nav_link);
+    }
+
+    #[test]
+    fn update_page_options_year_with_settings() {
+        let mut page_options = PageOptions::default();
+        let page_settings = PageSettings {
+            year: Some(year::Settings {
+                nav_link: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        page_options.update(&page_settings);
+        assert!(!page_options.year.is_default());
+        assert!(page_options.year.settings().nav_link);
+    }
 }

@@ -1,26 +1,13 @@
-use crate::options::{day, month, week, year};
-use crate::page::{CodeBlock, Entry, Page};
+use crate::options::PageSettings;
+use crate::page::{Entry, Page};
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;
 
 #[derive(Debug, Default)]
 pub struct Config {
     journals_folder: Option<String>,
-    settings: Option<Settings>,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Settings {
-    #[serde(default)]
-    pub day: Option<day::Settings>,
-    #[serde(default)]
-    pub week: Option<week::Settings>,
-    #[serde(default)]
-    pub month: Option<month::Settings>,
-    #[serde(default)]
-    pub year: Option<year::Settings>,
+    settings: Option<PageSettings>,
 }
 
 impl Config {
@@ -37,7 +24,7 @@ impl Config {
         self.journals_folder.as_deref()
     }
 
-    pub fn settings(&self) -> Option<&Settings> {
+    pub fn settings(&self) -> Option<&PageSettings> {
         self.settings.as_ref()
     }
 
@@ -50,20 +37,11 @@ impl Config {
 
         for entry in config.content.content {
             if let Entry::CodeBlock(block) = entry {
-                if block.kind.as_str() == "toml" {
-                    self.read_config_block(block)?;
+                if block.kind == "toml" {
+                    self.settings = Some(toml::from_str(&block.code)?);
                 }
             }
         }
-
-        Ok(())
-    }
-
-    fn read_config_block(&mut self, block: CodeBlock) -> Result<()> {
-        if block.kind != "toml" {
-            anyhow::bail!("Not a toml block");
-        }
-        self.settings = Some(toml::from_str(&block.code)?);
 
         Ok(())
     }
@@ -80,7 +58,7 @@ impl Config {
             .with_context(|| format!("parsing \"{}\"", daily_notes_config.display()))?;
 
         if let Some(folder) = config["folder"].as_str() {
-            log::info!("Using journals_folder {}", folder);
+            log::info!("Using journals folder {}", folder);
             self.journals_folder = Some(folder.to_owned());
         }
 

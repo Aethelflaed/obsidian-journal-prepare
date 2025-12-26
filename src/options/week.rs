@@ -118,6 +118,7 @@ impl GenericPage for Page {
     }
 
     fn update(&mut self, settings: &Settings) {
+        self.default = false;
         self.settings = settings.clone();
     }
 }
