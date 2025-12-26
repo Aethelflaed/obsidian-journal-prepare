@@ -256,6 +256,40 @@ mod tests {
     }
 
     #[test]
+    fn log_level_filter() -> anyhow::Result<()> {
+        assert_eq!(log::LevelFilter::Off, parsed_cmd(["-q"])?.log_level_filter);
+        assert_eq!(log::LevelFilter::Off, parsed_cmd(["-qq"])?.log_level_filter);
+        assert_eq!(log::LevelFilter::Error, parsed_cmd([])?.log_level_filter);
+        assert_eq!(log::LevelFilter::Warn, parsed_cmd(["-v"])?.log_level_filter);
+        assert_eq!(
+            log::LevelFilter::Info,
+            parsed_cmd(["-vv"])?.log_level_filter
+        );
+        assert_eq!(
+            log::LevelFilter::Debug,
+            parsed_cmd(["-vvv"])?.log_level_filter
+        );
+        assert_eq!(
+            log::LevelFilter::Trace,
+            parsed_cmd(["-vvvv"])?.log_level_filter
+        );
+        assert_eq!(
+            log::LevelFilter::Trace,
+            parsed_cmd(["-vvvvv"])?.log_level_filter
+        );
+
+        assert!(parsed_cmd(["-q", "-v"]).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn from_after_to() {
+        assert!(parsed_cmd(["--from", "2025-12-31", "--to", "2025-01-01"]).is_err());
+        assert!(parsed_cmd(["--from", "2025-01-01", "--to", "2025-12-31"]).is_ok());
+    }
+
+    #[test]
     fn update_page_options_day_does_not_override_flags() -> anyhow::Result<()> {
         let Options {
             mut page_options, ..
