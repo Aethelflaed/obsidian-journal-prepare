@@ -118,25 +118,22 @@ impl GenericPage for Page {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::{ArgMatches, Command};
-    use std::ffi::OsString;
+    use crate::options::{parse, Options, PageOptions};
 
-    fn cmd<I, T>(args_iter: I) -> Result<ArgMatches, clap::error::Error>
+    fn parsed_cmd<I>(args_iter: I) -> Result<Options, clap::error::Error>
     where
-        I: IntoIterator<Item = T>,
-        T: Into<OsString> + Clone,
+        I: IntoIterator<Item = &'static str>,
     {
-        Command::new("test")
-            .no_binary_name(true)
-            .arg(Page::arg())
-            .arg(Page::disabling_arg())
-            .try_get_matches_from(args_iter)
+        let base_args = ["binary_name", "--path", "."];
+        parse(base_args.into_iter().chain(args_iter))
     }
 
     #[test]
     fn flag_year_nav() -> anyhow::Result<()> {
-        let matches = cmd(["--year", "nav"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { year: page, .. },
+            ..
+        } = parsed_cmd(["--year", "nav"])?;
 
         assert!(!page.default);
         assert!(!page.settings().month);
@@ -147,8 +144,10 @@ mod tests {
 
     #[test]
     fn flag_year_month() -> anyhow::Result<()> {
-        let matches = cmd(["--year", "month"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { year: page, .. },
+            ..
+        } = parsed_cmd(["--year", "month"])?;
 
         assert!(!page.default);
         assert!(page.settings().month);
@@ -159,8 +158,10 @@ mod tests {
 
     #[test]
     fn all_flag_year() -> anyhow::Result<()> {
-        let matches = cmd(["--year", "nav", "--year", "month"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { year: page, .. },
+            ..
+        } = parsed_cmd(["--year", "nav", "--year", "month"])?;
 
         assert!(!page.default);
         assert!(!page.is_default());
@@ -172,8 +173,10 @@ mod tests {
 
     #[test]
     fn all_flag_year_csv() -> anyhow::Result<()> {
-        let matches = cmd(["--year", "nav,month"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { year: page, .. },
+            ..
+        } = parsed_cmd(["--year", "nav,month"])?;
 
         assert!(!page.default);
         assert!(!page.is_default());
@@ -185,8 +188,10 @@ mod tests {
 
     #[test]
     fn flag_absence_produces_default_page() -> anyhow::Result<()> {
-        let matches = cmd(Vec::<&str>::new())?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { year: page, .. },
+            ..
+        } = parsed_cmd(Vec::<&str>::new())?;
         assert!(page.is_default());
 
         Ok(())
@@ -194,14 +199,16 @@ mod tests {
 
     #[test]
     fn flag_requires_argument() {
-        assert!(cmd(["--year", "nav"]).is_ok());
-        assert!(cmd(["--year"]).is_err());
+        assert!(parsed_cmd(["--year", "nav"]).is_ok());
+        assert!(parsed_cmd(["--year"]).is_err());
     }
 
     #[test]
     fn disabling_flag_produces_disabled_page() -> anyhow::Result<()> {
-        let matches = cmd(["--no-year-page"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { year: page, .. },
+            ..
+        } = parsed_cmd(["--no-year-page"])?;
         assert!(!page.is_default());
         assert!(page.settings().is_empty());
 
@@ -210,8 +217,8 @@ mod tests {
 
     #[test]
     fn both_flags_are_exclusive() {
-        assert!(cmd(["--year", "nav"]).is_ok());
-        assert!(cmd(["--no-year-page"]).is_ok());
-        assert!(cmd(["--no-year-page", "--year", "nav"]).is_err());
+        assert!(parsed_cmd(["--year", "nav"]).is_ok());
+        assert!(parsed_cmd(["--no-year-page"]).is_ok());
+        assert!(parsed_cmd(["--no-year-page", "--year", "nav"]).is_err());
     }
 }

@@ -126,25 +126,22 @@ impl GenericPage for Page {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::{ArgMatches, Command};
-    use std::ffi::OsString;
+    use crate::options::{parse, Options, PageOptions};
 
-    fn cmd<I, T>(args_iter: I) -> Result<ArgMatches, clap::error::Error>
+    fn parsed_cmd<I>(args_iter: I) -> Result<Options, clap::error::Error>
     where
-        I: IntoIterator<Item = T>,
-        T: Into<OsString> + Clone,
+        I: IntoIterator<Item = &'static str>,
     {
-        Command::new("test")
-            .no_binary_name(true)
-            .arg(Page::arg())
-            .arg(Page::disabling_arg())
-            .try_get_matches_from(args_iter)
+        let base_args = ["binary_name", "--path", "."];
+        parse(base_args.into_iter().chain(args_iter))
     }
 
     #[test]
     fn flag_week_nav() -> anyhow::Result<()> {
-        let matches = cmd(["--week", "nav"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { week: page, .. },
+            ..
+        } = parsed_cmd(["--week", "nav"])?;
 
         assert!(!page.default);
         assert!(!page.settings().week);
@@ -156,8 +153,10 @@ mod tests {
 
     #[test]
     fn flag_week_month() -> anyhow::Result<()> {
-        let matches = cmd(["--week", "month"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { week: page, .. },
+            ..
+        } = parsed_cmd(["--week", "month"])?;
 
         assert!(!page.default);
         assert!(!page.settings().week);
@@ -169,8 +168,10 @@ mod tests {
 
     #[test]
     fn flag_week_week() -> anyhow::Result<()> {
-        let matches = cmd(["--week", "week"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { week: page, .. },
+            ..
+        } = parsed_cmd(["--week", "week"])?;
 
         assert!(!page.default);
         assert!(page.settings().week);
@@ -182,8 +183,10 @@ mod tests {
 
     #[test]
     fn all_flag_week() -> anyhow::Result<()> {
-        let matches = cmd(["--week", "nav", "--week", "month", "--week", "week"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { week: page, .. },
+            ..
+        } = parsed_cmd(["--week", "nav", "--week", "month", "--week", "week"])?;
 
         assert!(!page.default);
         assert!(!page.is_default());
@@ -196,8 +199,10 @@ mod tests {
 
     #[test]
     fn all_flag_week_csv() -> anyhow::Result<()> {
-        let matches = cmd(["--week", "nav,month,week"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { week: page, .. },
+            ..
+        } = parsed_cmd(["--week", "nav,month,week"])?;
 
         assert!(!page.default);
         assert!(!page.is_default());
@@ -210,8 +215,10 @@ mod tests {
 
     #[test]
     fn flag_absence_produces_default_page() -> anyhow::Result<()> {
-        let matches = cmd(Vec::<&str>::new())?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { week: page, .. },
+            ..
+        } = parsed_cmd(Vec::<&str>::new())?;
         assert!(page.is_default());
 
         Ok(())
@@ -219,14 +226,16 @@ mod tests {
 
     #[test]
     fn flag_requires_argument() {
-        assert!(cmd(["--week", "nav"]).is_ok());
-        assert!(cmd(["--week"]).is_err());
+        assert!(parsed_cmd(["--week", "nav"]).is_ok());
+        assert!(parsed_cmd(["--week"]).is_err());
     }
 
     #[test]
     fn disabling_flag_produces_disabled_page() -> anyhow::Result<()> {
-        let matches = cmd(["--no-week-page"])?;
-        let page = Page::from(&matches);
+        let Options {
+            page_options: PageOptions { week: page, .. },
+            ..
+        } = parsed_cmd(["--no-week-page"])?;
         assert!(!page.is_default());
         assert!(page.settings().is_empty());
 
@@ -235,8 +244,8 @@ mod tests {
 
     #[test]
     fn both_flags_are_exclusive() {
-        assert!(cmd(["--week", "nav"]).is_ok());
-        assert!(cmd(["--no-week-page"]).is_ok());
-        assert!(cmd(["--no-week-page", "--week", "nav"]).is_err());
+        assert!(parsed_cmd(["--week", "nav"]).is_ok());
+        assert!(parsed_cmd(["--no-week-page"]).is_ok());
+        assert!(parsed_cmd(["--no-week-page", "--week", "nav"]).is_err());
     }
 }

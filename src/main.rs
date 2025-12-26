@@ -20,6 +20,13 @@ use vault::Vault;
 
 mod events;
 
+fn parse() -> options::Options {
+    match options::parse(std::env::args_os()) {
+        Ok(options) => options,
+        Err(err) => err.exit(),
+    }
+}
+
 fn main() -> Result<()> {
     let options::Options {
         from,
@@ -27,7 +34,7 @@ fn main() -> Result<()> {
         path,
         log_level_filter,
         mut page_options,
-    } = options::parse()?;
+    } = parse();
 
     setup_log(log_level_filter)?;
 

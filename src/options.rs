@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::NaiveDate;
 use clap::Arg;
 use serde::{Deserialize, Serialize};
+use std::ffi::OsString;
 use std::path::PathBuf;
 
 pub mod day;
@@ -156,7 +157,11 @@ impl From<&clap::ArgMatches> for PageOptions {
     }
 }
 
-pub fn command() -> clap::Command {
+pub fn parse<I, T>(args_iter: I) -> Result<Options, clap::error::Error>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     use clap::{arg, command, value_parser};
 
     let from_help = "Only prepare journal start from given date";
@@ -166,7 +171,7 @@ pub fn command() -> clap::Command {
     let to_help = "Only prepare journal start from given date";
     let to_long_help = format!("{}\n\n[default: 1 month after --from]", to_help);
 
-    command!()
+    let mut command = command!()
         .arg(arg!(verbose: -v --verbose ... "Increase logging verbosity"))
         .arg(arg!(quiet: -q --quiet ... "Decrease logging verbosity").conflicts_with("verbose"))
         .arg(
@@ -195,14 +200,10 @@ pub fn command() -> clap::Command {
         .arg(month::Page::arg())
         .arg(month::Page::disabling_arg())
         .arg(year::Page::arg())
-        .arg(year::Page::disabling_arg())
-}
+        .arg(year::Page::disabling_arg());
 
-pub fn parse() -> Result<Options> {
-    let mut command = command();
-    let matches = command.get_matches_mut();
+    let matches = command.try_get_matches_from_mut(args_iter)?;
 
-    let from_default = chrono::Utc::now().date_naive();
     let from = matches
         .get_one::<NaiveDate>("from")
         .cloned()
@@ -213,12 +214,10 @@ pub fn parse() -> Result<Options> {
         .unwrap_or(from + chrono::Months::new(1));
 
     if to < from {
-        command
-            .error(
-                clap::error::ErrorKind::ArgumentConflict,
-                format!("--from {} should be less than --to {}", from, to),
-            )
-            .exit();
+        return Err(command.error(
+            clap::error::ErrorKind::ArgumentConflict,
+            format!("--from {} should be less than --to {}", from, to),
+        ));
     }
 
     let page_options = PageOptions::from(&matches);
@@ -247,23 +246,20 @@ pub fn parse() -> Result<Options> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::ArgMatches;
-    use std::ffi::OsString;
 
-    fn cmd<I, T>(args_iter: I) -> Result<ArgMatches, clap::error::Error>
+    fn parsed_cmd<I>(args_iter: I) -> Result<Options, clap::error::Error>
     where
-        I: IntoIterator<Item = T>,
-        T: Into<OsString> + Clone,
+        I: IntoIterator<Item = &'static str>,
     {
-        command()
-            .no_binary_name(true)
-            .try_get_matches_from(args_iter)
+        let base_args = ["binary_name", "--path", "."];
+        parse(base_args.into_iter().chain(args_iter))
     }
 
     #[test]
     fn update_page_options_day_does_not_override_flags() -> anyhow::Result<()> {
-        let matches = cmd(["--path", ".", "--day", "day,week"])?;
-        let mut page_options = PageOptions::from(&matches);
+        let Options {
+            mut page_options, ..
+        } = parsed_cmd(["--day", "day,week"])?;
 
         let page_settings = PageSettings {
             day: Some(day::Settings::default()),
@@ -278,8 +274,9 @@ mod tests {
 
     #[test]
     fn update_page_options_day_does_not_override_disabling_flag() -> anyhow::Result<()> {
-        let matches = cmd(["--path", ".", "--no-day-page"])?;
-        let mut page_options = PageOptions::from(&matches);
+        let Options {
+            mut page_options, ..
+        } = parsed_cmd(["--no-day-page"])?;
 
         let page_settings = PageSettings {
             day: Some(day::Settings {
@@ -336,8 +333,9 @@ mod tests {
 
     #[test]
     fn update_page_options_week_does_not_override_flags() -> anyhow::Result<()> {
-        let matches = cmd(["--path", ".", "--week", "week,month"])?;
-        let mut page_options = PageOptions::from(&matches);
+        let Options {
+            mut page_options, ..
+        } = parsed_cmd(["--week", "week,month"])?;
 
         let page_settings = PageSettings {
             week: Some(week::Settings::default()),
@@ -352,8 +350,9 @@ mod tests {
 
     #[test]
     fn update_page_options_week_does_not_override_disabling_flag() -> anyhow::Result<()> {
-        let matches = cmd(["--path", ".", "--no-week-page"])?;
-        let mut page_options = PageOptions::from(&matches);
+        let Options {
+            mut page_options, ..
+        } = parsed_cmd(["--no-week-page"])?;
 
         let page_settings = PageSettings {
             week: Some(week::Settings {
@@ -410,8 +409,9 @@ mod tests {
 
     #[test]
     fn update_page_options_month_does_not_override_flags() -> anyhow::Result<()> {
-        let matches = cmd(["--path", ".", "--month", "nav"])?;
-        let mut page_options = PageOptions::from(&matches);
+        let Options {
+            mut page_options, ..
+        } = parsed_cmd(["--month", "nav"])?;
 
         let page_settings = PageSettings {
             month: Some(month::Settings::default()),
@@ -426,8 +426,9 @@ mod tests {
 
     #[test]
     fn update_page_options_month_does_not_override_disabling_flag() -> anyhow::Result<()> {
-        let matches = cmd(["--path", ".", "--no-month-page"])?;
-        let mut page_options = PageOptions::from(&matches);
+        let Options {
+            mut page_options, ..
+        } = parsed_cmd(["--no-month-page"])?;
 
         let page_settings = PageSettings {
             month: Some(month::Settings {
@@ -484,8 +485,9 @@ mod tests {
 
     #[test]
     fn update_page_options_year_does_not_override_flags() -> anyhow::Result<()> {
-        let matches = cmd(["--path", ".", "--year", "nav"])?;
-        let mut page_options = PageOptions::from(&matches);
+        let Options {
+            mut page_options, ..
+        } = parsed_cmd(["--year", "nav"])?;
 
         let page_settings = PageSettings {
             year: Some(year::Settings::default()),
@@ -500,8 +502,9 @@ mod tests {
 
     #[test]
     fn update_page_options_year_does_not_override_disabling_flag() -> anyhow::Result<()> {
-        let matches = cmd(["--path", ".", "--no-year-page"])?;
-        let mut page_options = PageOptions::from(&matches);
+        let Options {
+            mut page_options, ..
+        } = parsed_cmd(["--no-year-page"])?;
 
         let page_settings = PageSettings {
             year: Some(year::Settings {
