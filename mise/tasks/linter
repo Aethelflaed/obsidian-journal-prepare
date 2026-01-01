@@ -3,5 +3,7 @@
 
 set -eu -o pipefail
 
-cargo fmt
-cargo clippy --all-targets
+{
+  cargo fmt -- --color=always
+  cargo clippy --all-targets --color=always 2>&1
+} | less -R -F
