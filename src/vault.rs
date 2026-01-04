@@ -65,7 +65,7 @@ impl Vault {
         Ok(())
     }
 
-    pub fn events<'a>(&'a self) -> std::slice::Iter<'a, Event> {
+    pub fn events(&self) -> std::slice::Iter<'_, Event> {
         self.events.iter()
     }
 
