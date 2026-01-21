@@ -20,8 +20,11 @@ pub struct Page {
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(default)]
     pub week: bool,
+    #[serde(default)]
     pub link_to_month: bool,
+    #[serde(default)]
     pub nav_link: bool,
 }
 

@@ -24,10 +24,15 @@ pub struct Page {
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(default)]
     pub day_of_week: bool,
+    #[serde(default)]
     pub link_to_week: bool,
+    #[serde(default)]
     pub link_to_month: bool,
+    #[serde(default)]
     pub nav_link: bool,
+    #[serde(default)]
     pub events: bool,
 }
 
