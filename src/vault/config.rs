@@ -10,7 +10,7 @@ pub struct Config {
     #[serde(default)]
     journals_folder: Option<String>,
     #[serde(flatten)]
-    settings: Option<PageSettings>,
+    settings: PageSettings,
     #[serde(default)]
     event_files: Vec<String>,
 }
@@ -65,22 +65,12 @@ impl Config {
 
     fn merge(mut self, other: Self) -> Self {
         let journals_folder = self.journals_folder.or(other.journals_folder);
-        let mut settings = self.settings.unwrap_or_default();
-
-        if let Some(mut other_settings) = other.settings {
-            if let Some(day) = other_settings.day.take() {
-                settings.day = Some(day);
-            }
-            if let Some(week) = other_settings.week.take() {
-                settings.week = Some(week);
-            }
-            if let Some(month) = other_settings.month.take() {
-                settings.month = Some(month);
-            }
-            if let Some(year) = other_settings.year.take() {
-                settings.year = Some(year);
-            }
-        }
+        let settings = PageSettings {
+            day: self.settings.day.or(other.settings.day),
+            week: self.settings.week.or(other.settings.week),
+            month: self.settings.month.or(other.settings.month),
+            year: self.settings.year.or(other.settings.year),
+        };
 
         for file in other.event_files {
             if self.event_files.iter().all(|f| f != &file) {
@@ -90,7 +80,7 @@ impl Config {
 
         Self {
             journals_folder,
-            settings: Some(settings),
+            settings,
             event_files: self.event_files,
         }
     }
@@ -99,8 +89,8 @@ impl Config {
         self.journals_folder.as_deref()
     }
 
-    pub fn settings(&self) -> Option<&PageSettings> {
-        self.settings.as_ref()
+    pub fn settings(&self) -> &PageSettings {
+        &self.settings
     }
 
     fn read_daily_notes_config(&mut self, path: &Path) -> Result<()> {
@@ -133,7 +123,10 @@ mod tests {
     fn default() {
         let config = Config::default();
         assert!(config.journals_folder().is_none());
-        assert!(config.settings().is_none());
+        assert!(config.settings.day.is_none());
+        assert!(config.settings.week.is_none());
+        assert!(config.settings.month.is_none());
+        assert!(config.settings.year.is_none());
     }
 
     #[test]
@@ -142,7 +135,10 @@ mod tests {
         let config = Config::new(temp_dir.path())?;
 
         assert!(config.journals_folder().is_none());
-        assert!(config.settings().is_none());
+        assert!(config.settings.day.is_none());
+        assert!(config.settings.week.is_none());
+        assert!(config.settings.month.is_none());
+        assert!(config.settings.year.is_none());
 
         Ok(())
     }
@@ -158,7 +154,10 @@ mod tests {
         let config = Config::new(temp_dir.path())?;
 
         assert!(config.journals_folder().is_none());
-        assert!(config.settings().is_none());
+        assert!(config.settings.day.is_none());
+        assert!(config.settings.week.is_none());
+        assert!(config.settings.month.is_none());
+        assert!(config.settings.year.is_none());
 
         Ok(())
     }
@@ -180,12 +179,10 @@ mod tests {
         let config = Config::new(temp_dir.path())?;
 
         assert_eq!(Some("Foo"), config.journals_folder());
-        assert!(config.settings.is_some());
-        let settings = config.settings.unwrap();
-        assert!(settings.day.is_some());
-        assert!(settings.week.is_none());
-        assert!(settings.month.is_none());
-        assert!(settings.year.is_none());
+        assert!(config.settings.day.is_some());
+        assert!(config.settings.week.is_none());
+        assert!(config.settings.month.is_none());
+        assert!(config.settings.year.is_none());
 
         Ok(())
     }
@@ -213,12 +210,10 @@ mod tests {
         println!("{config:?}");
 
         assert_eq!(Some("Foo"), config.journals_folder());
-        assert!(config.settings.is_some());
-        let settings = config.settings.unwrap();
-        assert!(settings.day.is_some());
-        assert!(settings.week.is_some());
-        assert!(settings.month.is_none());
-        assert!(settings.year.is_none());
+        assert!(config.settings.day.is_some());
+        assert!(config.settings.week.is_some());
+        assert!(config.settings.month.is_none());
+        assert!(config.settings.year.is_none());
 
         Ok(())
     }

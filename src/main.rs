@@ -39,10 +39,7 @@ fn main() -> Result<()> {
     setup_log(log_level_filter)?;
 
     let vault = Vault::new(path)?;
-
-    if let Some(settings) = vault.config().settings() {
-        page_options.update(settings);
-    }
+    page_options.update(vault.config().settings());
 
     Preparer {
         from,
