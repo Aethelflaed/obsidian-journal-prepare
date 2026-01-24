@@ -170,6 +170,7 @@ prev: "[[/journals/2025-12-08|2025-12-08]]"
 ---
 - [ ] stretching
 ```
+<img width="2561" height="1147" alt="image" src="https://github.com/user-attachments/assets/04716e5b-3385-4443-96d6-b92a0e0afc25" />
 
 The "2025/Week 50.md" page:
 ```md
@@ -187,3 +188,4 @@ month: "[[/2025/December|December]]"
 - Sunday ![[/journals/2025-12-14|2025-12-14]]
 
 ```
+<img width="1919" height="1582" alt="image" src="https://github.com/user-attachments/assets/3f96d397-e592-4044-9dd7-7ad8721567b5" />
