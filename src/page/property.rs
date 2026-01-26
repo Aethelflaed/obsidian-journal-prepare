@@ -3,25 +3,25 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, derive_more::Display)]
 #[display("{key}: \"{value}\"")]
-pub struct Metadata {
+pub struct Property {
     pub key: String,
     pub value: String,
 }
 
-impl Metadata {
-    pub fn update(&mut self, rhs: Metadata) {
+impl Property {
+    pub fn update(&mut self, rhs: Property) {
         if self.key == rhs.key {
             self.value = rhs.value
         }
     }
 }
 
-impl FromStr for Metadata {
+impl FromStr for Property {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
         let Some((key, value)) = s.split_once(":") else {
-            anyhow::bail!("Can't find : in metadata {:?}", s);
+            anyhow::bail!("Can't find : in property {:?}", s);
         };
 
         let key = key.trim().to_owned();
@@ -36,12 +36,12 @@ impl FromStr for Metadata {
     }
 }
 
-pub trait ToMetadata {
-    fn to_metadata<K: Into<String>>(&self, key: K) -> Metadata;
+pub trait ToProperty {
+    fn to_property<K: Into<String>>(&self, key: K) -> Property;
 }
-impl<V: ToString> ToMetadata for V {
-    fn to_metadata<K: Into<String>>(&self, key: K) -> Metadata {
-        Metadata {
+impl<V: ToString> ToProperty for V {
+    fn to_property<K: Into<String>>(&self, key: K) -> Property {
+        Property {
             key: key.into(),
             value: self.to_string(),
         }
@@ -53,16 +53,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn metadata_display_parse() {
+    fn property_display_parse() {
         let s = r#"month: "January""#;
-        let m = s.parse::<Metadata>().unwrap();
+        let m = s.parse::<Property>().unwrap();
 
         assert_eq!("month", m.key.as_str());
         assert_eq!(s, m.to_string().as_str());
         assert_eq!("January".to_owned(), m.value);
 
         let s = r#"filters: "{"month" false}""#;
-        let m = s.parse::<Metadata>().unwrap();
+        let m = s.parse::<Property>().unwrap();
 
         assert_eq!("filters", m.key.as_str());
         assert_eq!(s, m.to_string().as_str());
@@ -70,10 +70,10 @@ mod tests {
     }
 
     #[test]
-    fn metadata_update() -> anyhow::Result<()> {
-        let v1 = r#"month: true"#.parse::<Metadata>()?;
-        let v2 = r#"month: false"#.parse::<Metadata>()?;
-        let v3 = r#"week: false"#.parse::<Metadata>()?;
+    fn property_update() -> anyhow::Result<()> {
+        let v1 = r#"month: true"#.parse::<Property>()?;
+        let v2 = r#"month: false"#.parse::<Property>()?;
+        let v3 = r#"week: false"#.parse::<Property>()?;
 
         // different keys
         let mut v4 = v3.clone();

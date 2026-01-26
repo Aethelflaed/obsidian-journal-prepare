@@ -5,12 +5,10 @@ mod options;
 use options::{GenericPage, GenericSettings};
 
 mod page;
+use page::property::ToProperty;
 
 mod date_utils;
 use date_utils::{Month, Navigation, ToDateIterator, Year};
-
-mod metadata;
-use metadata::ToMetadata;
 
 mod utils;
 use utils::{ToEmbedded, ToLink};
@@ -58,7 +56,7 @@ fn setup_log(level: log::LevelFilter) -> Result<()> {
 
     // If the output streams of this process are directly connected to the
     // systemd journal log directly to the journal to preserve structured
-    // log entries (e.g. proper multiline messages, metadata fields, etc.)
+    // log entries (e.g. proper multiline messages, properties, etc.)
     if connected_to_journal() {
         JournalLog::new()
             .unwrap()
@@ -158,8 +156,8 @@ impl Preparer {
 
         self.vault.update(year, |mut page| {
             if settings.nav_link {
-                page.push_metadata(year.next().to_link(&self.vault).to_metadata("next"));
-                page.push_metadata(year.prev().to_link(&self.vault).to_metadata("prev"));
+                page.push_property(year.next().to_link(&self.vault).to_property("next"));
+                page.push_property(year.prev().to_link(&self.vault).to_property("prev"));
             }
             if settings.month {
                 for month in year.iter() {
@@ -179,8 +177,8 @@ impl Preparer {
 
         self.vault.update(month, |mut page| {
             if settings.nav_link {
-                page.push_metadata(month.next().to_link(&self.vault).to_metadata("next"));
-                page.push_metadata(month.prev().to_link(&self.vault).to_metadata("prev"));
+                page.push_property(month.next().to_link(&self.vault).to_property("next"));
+                page.push_property(month.prev().to_link(&self.vault).to_property("prev"));
             }
             if settings.month {
                 for (index, date) in month.iter().enumerate() {
@@ -207,11 +205,11 @@ impl Preparer {
 
         self.vault.update(week, |mut page| {
             if settings.link_to_month {
-                page.push_metadata(Month::from(week).to_link(&self.vault).to_metadata("month"));
+                page.push_property(Month::from(week).to_link(&self.vault).to_property("month"));
             }
             if settings.nav_link {
-                page.push_metadata(week.next().to_link(&self.vault).to_metadata("next"));
-                page.push_metadata(week.prev().to_link(&self.vault).to_metadata("prev"));
+                page.push_property(week.next().to_link(&self.vault).to_property("next"));
+                page.push_property(week.prev().to_link(&self.vault).to_property("prev"));
             }
             if settings.week {
                 for date in week.iter() {
@@ -235,17 +233,17 @@ impl Preparer {
 
         self.vault.update(date, |mut page| {
             if settings.day_of_week {
-                page.push_metadata(weekday(date).to_metadata("day"));
+                page.push_property(weekday(date).to_property("day"));
             }
             if settings.link_to_week {
-                page.push_metadata(date.iso_week().to_link(&self.vault).to_metadata("week"));
+                page.push_property(date.iso_week().to_link(&self.vault).to_property("week"));
             }
             if settings.link_to_month {
-                page.push_metadata(Month::from(date).to_link(&self.vault).to_metadata("month"));
+                page.push_property(Month::from(date).to_link(&self.vault).to_property("month"));
             }
             if settings.nav_link {
-                page.push_metadata(date.next().to_link(&self.vault).to_metadata("next"));
-                page.push_metadata(date.prev().to_link(&self.vault).to_metadata("prev"));
+                page.push_property(date.next().to_link(&self.vault).to_property("next"));
+                page.push_property(date.prev().to_link(&self.vault).to_property("prev"));
             }
             if settings.events {
                 for event in self.vault.events() {

@@ -1,10 +1,12 @@
-use crate::metadata::Metadata;
 use anyhow::{Context, Result};
 use std::fmt::{Display, Formatter};
 use std::io::Write;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+
+pub mod property;
+use property::Property;
 
 #[derive(Debug)]
 pub struct Page {
@@ -41,8 +43,8 @@ impl Page {
             .push(Entry::Line(format!("{}", content)))
     }
 
-    pub fn push_metadata<M: Into<Metadata>>(&mut self, metadata: M) {
-        self.content.metadata.push(metadata.into());
+    pub fn push_property<P: Into<Property>>(&mut self, property: P) {
+        self.content.properties.push(property.into());
     }
 }
 
@@ -71,7 +73,7 @@ impl Add for Page {
 
 #[derive(Debug, Default)]
 pub struct Content {
-    pub metadata: Vec<Metadata>,
+    pub properties: Vec<Property>,
     pub content: Vec<Entry>,
 }
 
@@ -107,7 +109,7 @@ impl CodeBlock {
 impl Display for Content {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "---")?;
-        for line in &self.metadata {
+        for line in &self.properties {
             writeln!(f, "{}", line)?;
         }
         writeln!(f, "---")?;
@@ -140,7 +142,7 @@ impl FromStr for Content {
                 if line == "---" {
                     break;
                 } else {
-                    page.metadata.push(line.parse()?);
+                    page.properties.push(line.parse()?);
                 }
             }
         }
@@ -173,11 +175,11 @@ impl Add for Content {
     type Output = Content;
 
     fn add(mut self, rhs: Content) -> Self::Output {
-        for line in rhs.metadata {
-            if let Some(metadata) = self.metadata.iter_mut().find(|l| l.key == line.key) {
-                metadata.update(line);
+        for line in rhs.properties {
+            if let Some(property) = self.properties.iter_mut().find(|l| l.key == line.key) {
+                property.update(line);
             } else {
-                self.metadata.push(line);
+                self.properties.push(line);
             }
         }
         for line in rhs.content {
@@ -200,7 +202,7 @@ mod tests {
         let temp_dir = assert_fs::TempDir::new()?;
         let file = temp_dir.child("page.md");
 
-        let metadata = r#"month: "[[2024/September]]""#;
+        let properties = r#"month: "[[2024/September]]""#;
         let content = indoc! {"
             - TODO Something
             - DONE Something else
@@ -211,7 +213,7 @@ mod tests {
             formatdoc!(
                 "
                 ---
-                {metadata}
+                {properties}
                 ---
                 {content}"
             )
@@ -222,7 +224,7 @@ mod tests {
         page.write()?;
         file.assert(formatdoc! {"
             ---
-            {metadata}
+            {properties}
             ---
             {content}"});
 
