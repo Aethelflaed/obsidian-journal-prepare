@@ -7,11 +7,11 @@ use crate::options::{GenericPage, GenericSettings, PageOptions};
 use crate::page::property::ToProperty;
 use crate::utils::{ToEmbedded, ToLink};
 
-pub struct Preparer {
+pub struct Preparer<'a> {
     pub from: NaiveDate,
     pub to: NaiveDate,
-    pub vault: Vault,
     pub page_options: PageOptions,
+    pub vault: &'a Vault,
 }
 
 fn weekday(date: NaiveDate) -> &'static str {
@@ -26,7 +26,7 @@ fn weekday(date: NaiveDate) -> &'static str {
     }
 }
 
-impl Preparer {
+impl Preparer<'_> {
     pub fn run(&self) -> Result<()> {
         log::info!(
             "Preparing journal {:?} from {} to {}",
@@ -82,12 +82,12 @@ impl Preparer {
 
         self.vault.update(year, |mut page| {
             if settings.nav_link {
-                page.push_property(year.next().to_link(&self.vault).to_property("next"));
-                page.push_property(year.prev().to_link(&self.vault).to_property("prev"));
+                page.push_property(year.next().to_link(self.vault).to_property("next"));
+                page.push_property(year.prev().to_link(self.vault).to_property("prev"));
             }
             if settings.month {
                 for month in year.iter() {
-                    page.push_content(month.to_link(&self.vault));
+                    page.push_content(month.to_link(self.vault));
                 }
             }
 
@@ -103,18 +103,18 @@ impl Preparer {
 
         self.vault.update(month, |mut page| {
             if settings.nav_link {
-                page.push_property(month.next().to_link(&self.vault).to_property("next"));
-                page.push_property(month.prev().to_link(&self.vault).to_property("prev"));
+                page.push_property(month.next().to_link(self.vault).to_property("next"));
+                page.push_property(month.prev().to_link(self.vault).to_property("prev"));
             }
             if settings.month {
                 for (index, date) in month.iter().enumerate() {
                     if index == 0 || date.weekday() == Weekday::Mon {
-                        page.push_content(format!("#### {}", date.iso_week().to_link(&self.vault)));
+                        page.push_content(format!("#### {}", date.iso_week().to_link(self.vault)));
                     }
                     page.push_content(format!(
                         "- {} {}",
                         weekday(date),
-                        date.to_link(&self.vault).into_embedded()
+                        date.to_link(self.vault).into_embedded()
                     ));
                 }
             }
@@ -131,18 +131,18 @@ impl Preparer {
 
         self.vault.update(week, |mut page| {
             if settings.link_to_month {
-                page.push_property(Month::from(week).to_link(&self.vault).to_property("month"));
+                page.push_property(Month::from(week).to_link(self.vault).to_property("month"));
             }
             if settings.nav_link {
-                page.push_property(week.next().to_link(&self.vault).to_property("next"));
-                page.push_property(week.prev().to_link(&self.vault).to_property("prev"));
+                page.push_property(week.next().to_link(self.vault).to_property("next"));
+                page.push_property(week.prev().to_link(self.vault).to_property("prev"));
             }
             if settings.week {
                 for date in week.iter() {
                     page.push_content(format!(
                         "- {} {}",
                         weekday(date),
-                        date.to_link(&self.vault).into_embedded()
+                        date.to_link(self.vault).into_embedded()
                     ));
                 }
             }
@@ -162,14 +162,14 @@ impl Preparer {
                 page.push_property(weekday(date).to_property("day"));
             }
             if settings.link_to_week {
-                page.push_property(date.iso_week().to_link(&self.vault).to_property("week"));
+                page.push_property(date.iso_week().to_link(self.vault).to_property("week"));
             }
             if settings.link_to_month {
-                page.push_property(Month::from(date).to_link(&self.vault).to_property("month"));
+                page.push_property(Month::from(date).to_link(self.vault).to_property("month"));
             }
             if settings.nav_link {
-                page.push_property(date.next().to_link(&self.vault).to_property("next"));
-                page.push_property(date.prev().to_link(&self.vault).to_property("prev"));
+                page.push_property(date.next().to_link(self.vault).to_property("next"));
+                page.push_property(date.prev().to_link(self.vault).to_property("prev"));
             }
             if settings.events {
                 for event in self.vault.events() {

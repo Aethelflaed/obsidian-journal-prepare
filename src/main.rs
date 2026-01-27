@@ -22,21 +22,12 @@ fn main() -> Result<()> {
         to,
         path,
         log_level_filter,
-        mut page_options,
+        page_options,
     } = parse();
 
     setup_log(log_level_filter)?;
 
-    let vault = Vault::new(path)?;
-    page_options.update(vault.config().settings());
-
-    vault::preparer::Preparer {
-        from,
-        to,
-        vault,
-        page_options,
-    }
-    .run()?;
+    Vault::new(path)?.prepare(from, to, page_options)?;
 
     Ok(())
 }

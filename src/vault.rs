@@ -1,7 +1,9 @@
 use crate::events::Event;
+use crate::options::PageOptions;
 use crate::page::{Entry, Page};
 use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
+use chrono::NaiveDate;
 use std::path::{Path, PathBuf};
 
 pub mod config;
@@ -34,12 +36,25 @@ impl Vault {
         Ok(vault)
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
+    pub fn prepare(
+        &self,
+        from: NaiveDate,
+        to: NaiveDate,
+        mut page_options: PageOptions,
+    ) -> Result<()> {
+        page_options.update(self.config.settings());
+
+        preparer::Preparer {
+            from,
+            to,
+            page_options,
+            vault: self,
+        }
+        .run()
     }
 
-    pub fn config(&self) -> &Config {
-        &self.config
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     fn configure(&mut self) -> Result<()> {
