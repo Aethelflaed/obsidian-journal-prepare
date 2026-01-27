@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 pub mod config;
 pub use config::Config;
 
+pub mod preparer;
+
 /// A vault represents the whole folder with all the documents, e.g. the obsidian folder (which
 /// they name a vault)
 #[derive(Debug)]
