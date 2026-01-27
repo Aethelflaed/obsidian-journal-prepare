@@ -87,7 +87,7 @@ impl Preparer<'_> {
             }
             if settings.month {
                 for month in year.iter() {
-                    page.push_content(month.to_link(self.vault));
+                    page.push_line(month.to_link(self.vault));
                 }
             }
 
@@ -109,9 +109,9 @@ impl Preparer<'_> {
             if settings.month {
                 for (index, date) in month.iter().enumerate() {
                     if index == 0 || date.weekday() == Weekday::Mon {
-                        page.push_content(format!("#### {}", date.iso_week().to_link(self.vault)));
+                        page.push_line(format!("#### {}", date.iso_week().to_link(self.vault)));
                     }
-                    page.push_content(format!(
+                    page.push_line(format!(
                         "- {} {}",
                         weekday(date),
                         date.to_link(self.vault).into_embedded()
@@ -139,7 +139,7 @@ impl Preparer<'_> {
             }
             if settings.week {
                 for date in week.iter() {
-                    page.push_content(format!(
+                    page.push_line(format!(
                         "- {} {}",
                         weekday(date),
                         date.to_link(self.vault).into_embedded()
@@ -174,7 +174,7 @@ impl Preparer<'_> {
             if settings.events {
                 for event in self.vault.events() {
                     if event.matches(date) {
-                        page.push_content(&event.content);
+                        page.push_line(&event.content);
                     }
                 }
             }

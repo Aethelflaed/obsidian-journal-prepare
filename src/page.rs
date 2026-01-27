@@ -37,10 +37,8 @@ impl Page {
         Ok(())
     }
 
-    pub fn push_content<C: Display>(&mut self, content: C) {
-        self.content
-            .content
-            .push(Entry::Line(format!("{}", content)))
+    pub fn push_line<L: Display>(&mut self, line: L) {
+        self.content.entries.push(Entry::Line(format!("{}", line)))
     }
 
     pub fn push_property<P: Into<Property>>(&mut self, property: P) {
@@ -74,7 +72,7 @@ impl Add for Page {
 #[derive(Debug, Default)]
 pub struct Content {
     pub properties: Vec<Property>,
-    pub content: Vec<Entry>,
+    pub entries: Vec<Entry>,
 }
 
 #[derive(Debug, derive_more::Display, PartialEq)]
@@ -114,14 +112,14 @@ impl Display for Content {
         }
         writeln!(f, "---")?;
 
-        let mut content_started = false;
+        let mut entries_started = false;
 
-        for line in &self.content {
-            if !content_started {
+        for line in &self.entries {
+            if !entries_started {
                 if line.is_empty() {
                     continue;
                 } else {
-                    content_started = true;
+                    entries_started = true;
                 }
             }
             writeln!(f, "{}", line)?;
@@ -134,7 +132,7 @@ impl FromStr for Content {
     type Err = anyhow::Error;
 
     fn from_str(string: &str) -> Result<Self> {
-        let mut page = Content::default();
+        let mut content = Content::default();
         let mut lines = string.lines().peekable();
 
         if lines.next_if_eq(&"---").is_some() {
@@ -142,7 +140,7 @@ impl FromStr for Content {
                 if line == "---" {
                     break;
                 } else {
-                    page.properties.push(line.parse()?);
+                    content.properties.push(line.parse()?);
                 }
             }
         }
@@ -158,16 +156,16 @@ impl FromStr for Content {
                         code += "\n";
                     }
                 }
-                page.content.push(Entry::CodeBlock(CodeBlock {
+                content.entries.push(Entry::CodeBlock(CodeBlock {
                     kind: kind.to_owned(),
                     code,
                 }));
             } else {
-                page.content.push(Entry::Line(line.to_owned()));
+                content.entries.push(Entry::Line(line.to_owned()));
             }
         }
 
-        Ok(page)
+        Ok(content)
     }
 }
 
@@ -182,9 +180,9 @@ impl Add for Content {
                 self.properties.push(line);
             }
         }
-        for line in rhs.content {
-            if self.content.iter().all(|l| *l != line) {
-                self.content.push(line);
+        for line in rhs.entries {
+            if self.entries.iter().all(|l| *l != line) {
+                self.entries.push(line);
             }
         }
         self
@@ -203,7 +201,7 @@ mod tests {
         let file = temp_dir.child("page.md");
 
         let properties = r#"month: "[[2024/September]]""#;
-        let content = indoc! {"
+        let entries = indoc! {"
             - TODO Something
             - DONE Something else
             - One other thing
@@ -215,7 +213,7 @@ mod tests {
                 ---
                 {properties}
                 ---
-                {content}"
+                {entries}"
             )
             .as_str(),
         )?;
@@ -226,7 +224,7 @@ mod tests {
             ---
             {properties}
             ---
-            {content}"});
+            {entries}"});
 
         let second_file = temp_dir.child("another page.md");
         second_file.write_str(indoc! {r#"
@@ -276,10 +274,10 @@ mod tests {
         let page: Page = file.path().try_into()?;
 
         assert!(matches!(
-            page.content.content.first(),
+            page.content.entries.first(),
             Some(Entry::CodeBlock(_))
         ));
-        if let Some(Entry::CodeBlock(code_block)) = page.content.content.first() {
+        if let Some(Entry::CodeBlock(code_block)) = page.content.entries.first() {
             assert_eq!("toml", code_block.kind);
             assert_eq!("value = \"test\"\n", code_block.code);
         }

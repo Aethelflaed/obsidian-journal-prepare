@@ -69,7 +69,7 @@ impl Vault {
             return Ok(());
         }
         let event_page = Page::try_from(event_page_path.as_path())?;
-        for entry in event_page.content.content {
+        for entry in event_page.content.entries {
             if let Entry::CodeBlock(block) = entry {
                 if block.kind.as_str() == "toml" {
                     let event = block.try_into()?;
@@ -254,11 +254,11 @@ mod tests {
         let name: PageName = "foo".to_string().into();
 
         vault.update(name.clone(), |mut page| {
-            page.push_content("World");
+            page.push_line("World");
             Ok(page)
         })?;
         vault.update(name.clone(), |mut page| {
-            page.push_content("Hello");
+            page.push_line("Hello");
             Ok(page)
         })?;
 

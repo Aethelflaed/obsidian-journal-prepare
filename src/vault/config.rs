@@ -34,7 +34,7 @@ impl TryFrom<&Path> for Config {
         let page = Page::try_from(path)?;
         let mut configs = Vec::<Config>::new();
 
-        for entry in page.content.content {
+        for entry in page.content.entries {
             if let Entry::CodeBlock(block) = entry {
                 if block.kind == "toml" {
                     configs.push(toml::from_str(&block.code)?);
