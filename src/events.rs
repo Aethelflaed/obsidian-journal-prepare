@@ -1,4 +1,4 @@
-use crate::page::CodeBlock;
+use crate::page::content::CodeBlock;
 use anyhow::{Error, Result};
 use chrono::{Datelike, NaiveDate, Weekday};
 use serde::{Deserialize, Serialize};
