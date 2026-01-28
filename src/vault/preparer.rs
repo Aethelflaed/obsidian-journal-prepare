@@ -4,7 +4,6 @@ use chrono::{Datelike, Days, IsoWeek, NaiveDate, Weekday};
 use super::Vault;
 use crate::date_utils::{Month, Navigation, ToDateIterator, Year};
 use crate::options::{GenericPage, GenericSettings, PageOptions};
-use crate::page::property::ToProperty;
 use crate::utils::{ToEmbedded, ToLink};
 
 pub struct Preparer<'a> {
@@ -82,8 +81,8 @@ impl Preparer<'_> {
 
         self.vault.update(year, |mut page| {
             if settings.nav_link {
-                page.push_property(year.next().to_link(self.vault).to_property("next"));
-                page.push_property(year.prev().to_link(self.vault).to_property("prev"));
+                page.insert_property("next", year.next().to_link(self.vault));
+                page.insert_property("prev", year.prev().to_link(self.vault));
             }
             if settings.month {
                 page.prepend_lines(year.iter().map(|month| month.to_link(self.vault)));
@@ -101,8 +100,8 @@ impl Preparer<'_> {
 
         self.vault.update(month, |mut page| {
             if settings.nav_link {
-                page.push_property(month.next().to_link(self.vault).to_property("next"));
-                page.push_property(month.prev().to_link(self.vault).to_property("prev"));
+                page.insert_property("next", month.next().to_link(self.vault));
+                page.insert_property("prev", month.prev().to_link(self.vault));
             }
             if settings.month {
                 // 31 days max plus 5 weeks headers
@@ -133,11 +132,11 @@ impl Preparer<'_> {
 
         self.vault.update(week, |mut page| {
             if settings.link_to_month {
-                page.push_property(Month::from(week).to_link(self.vault).to_property("month"));
+                page.insert_property("month", Month::from(week).to_link(self.vault));
             }
             if settings.nav_link {
-                page.push_property(week.next().to_link(self.vault).to_property("next"));
-                page.push_property(week.prev().to_link(self.vault).to_property("prev"));
+                page.insert_property("next", week.next().to_link(self.vault));
+                page.insert_property("prev", week.prev().to_link(self.vault));
             }
             if settings.week {
                 page.prepend_lines(week.iter().map(|date| {
@@ -161,17 +160,17 @@ impl Preparer<'_> {
 
         self.vault.update(date, |mut page| {
             if settings.day_of_week {
-                page.push_property(weekday(date).to_property("day"));
+                page.insert_property("day", weekday(date));
             }
             if settings.link_to_week {
-                page.push_property(date.iso_week().to_link(self.vault).to_property("week"));
+                page.insert_property("week", date.iso_week().to_link(self.vault));
             }
             if settings.link_to_month {
-                page.push_property(Month::from(date).to_link(self.vault).to_property("month"));
+                page.insert_property("month", Month::from(date).to_link(self.vault));
             }
             if settings.nav_link {
-                page.push_property(date.next().to_link(self.vault).to_property("next"));
-                page.push_property(date.prev().to_link(self.vault).to_property("prev"));
+                page.insert_property("next", date.next().to_link(self.vault));
+                page.insert_property("prev", date.prev().to_link(self.vault));
             }
             if settings.events {
                 page.prepend_lines(

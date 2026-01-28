@@ -3,9 +3,6 @@ use std::fmt::Display;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-pub mod property;
-use property::Property;
-
 pub mod content;
 pub use content::{Content, Entry};
 
@@ -60,10 +57,13 @@ impl Page {
         }
     }
 
-    pub fn push_property<P: Into<Property>>(&mut self, property: P) {
+    pub fn insert_property<K, V>(&mut self, key: K, value: V)
+    where
+        K: Into<String>,
+        V: Display
+    {
         self.modified = true;
-        let property = property.into();
-        self.content.insert_property(property.key, property.value);
+        self.content.insert_property(key.into(), format!("{}", value));
     }
 
     pub fn modified(&self) -> bool {
