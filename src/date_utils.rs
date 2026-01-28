@@ -191,6 +191,26 @@ where
     }
 }
 
+impl<T, U> DoubleEndedIterator for DateIterator<'_, T, U>
+where
+    T: ToDateIterator<Element = U>,
+    U: Navigation + std::cmp::PartialOrd + Clone,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match &self.current {
+            None => {
+                self.current = Some(self.range.last());
+                self.current.clone()
+            }
+            Some(value) if *value > self.range.first() => {
+                self.current = Some(value.prev());
+                self.current.clone()
+            }
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,18 +331,42 @@ mod tests {
         fn week() {
             let week = NaiveDate::from_ymd_opt(2024, 9, 24).unwrap().iso_week();
             assert_eq!(7, week.iter().count());
+            assert_eq!(week.iter().next(), NaiveDate::from_ymd_opt(2024, 9, 23));
+            assert_eq!(
+                week.iter().next_back(),
+                NaiveDate::from_ymd_opt(2024, 9, 29)
+            );
         }
 
         #[test]
         fn month() {
             let month = Month::from(NaiveDate::from_ymd_opt(2024, 2, 5).unwrap());
             assert_eq!(29, month.iter().count());
+            assert_eq!(month.iter().next(), NaiveDate::from_ymd_opt(2024, 2, 1));
+            assert_eq!(
+                month.iter().next_back(),
+                NaiveDate::from_ymd_opt(2024, 2, 29)
+            );
         }
 
         #[test]
         fn year() {
             let year = Year::from(2024);
             assert_eq!(12, year.iter().count());
+            assert_eq!(
+                year.iter().next(),
+                Some(Month {
+                    year: 2024,
+                    month: 1
+                })
+            );
+            assert_eq!(
+                year.iter().next_back(),
+                Some(Month {
+                    year: 2024,
+                    month: 12
+                })
+            );
         }
     }
 }
