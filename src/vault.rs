@@ -255,20 +255,19 @@ mod tests {
             page.prepend_line("World");
             Ok(page)
         })?;
+
+        let path = vault.page_file_path(name.clone());
+        let content = std::fs::read_to_string(&path)?;
+        assert_eq!(content, "---\n---\nWorld\n");
+
         vault.update(name.clone(), |mut page| {
             page.prepend_line("Hello");
             Ok(page)
         })?;
 
-        let page: Page = vault.page_file_path(name).as_path().try_into()?;
-
-        assert_eq!(
-            page.entries()
-                .map(|e| format!("{}", e))
-                .collect::<Vec<_>>()
-                .join("\n"),
-            "Hello\nWorld"
-        );
+        let path = vault.page_file_path(name.clone());
+        let content = std::fs::read_to_string(&path)?;
+        assert_eq!(content, "---\n---\nHello\nWorld\n");
 
         Ok(())
     }

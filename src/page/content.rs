@@ -1,13 +1,34 @@
-use super::Property;
 use anyhow::Result;
+use saphyr::{ScalarOwned, YamlOwned};
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Content {
-    pub(super) properties: Vec<Property>,
+    pub(super) properties: YamlOwned,
     pub(super) entries: VecDeque<Entry>,
+}
+
+impl Default for Content {
+    fn default() -> Self {
+        Self {
+            properties: YamlOwned::Mapping(saphyr::MappingOwned::default()),
+            entries: Default::default(),
+        }
+    }
+}
+
+impl Content {
+    pub(super) fn insert_property(&mut self, key: String, value: String) {
+        let Some(mapping) = self.properties.as_mapping_mut() else {
+            unreachable!()
+        };
+        mapping.insert(
+            YamlOwned::Value(ScalarOwned::String(key)),
+            YamlOwned::Value(ScalarOwned::String(value)),
+        );
+    }
 }
 
 #[derive(Debug, derive_more::Display, PartialEq)]
@@ -41,11 +62,17 @@ impl CodeBlock {
 
 impl Display for Content {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "---")?;
-        for line in &self.properties {
-            writeln!(f, "{}", line)?;
+        use saphyr::{Yaml, YamlEmitter};
+
+        if self.properties.is_empty_collection() {
+            writeln!(f, "---\n---")?;
+        } else {
+            let mut emitter = YamlEmitter::new(f);
+            emitter
+                .dump(&Yaml::from(&self.properties))
+                .map_err(|_| std::fmt::Error)?;
+            writeln!(f, "\n---")?;
         }
-        writeln!(f, "---")?;
 
         let mut entries_started = false;
 
@@ -70,13 +97,33 @@ impl FromStr for Content {
         let mut content = Content::default();
         let mut lines = string.lines().peekable();
 
+        let mut properties = String::new();
+
         if lines.next_if_eq(&"---").is_some() {
             for line in lines.by_ref() {
                 if line == "---" {
                     break;
                 } else {
-                    content.properties.push(line.parse()?);
+                    properties.push_str(line);
+                    properties.push('\n');
                 }
+            }
+        }
+
+        use saphyr::LoadableYamlNode;
+        let mut yaml_documents = YamlOwned::load_from_str(properties.as_str())?;
+        if yaml_documents.len() > 1 {
+            anyhow::bail!(
+                "Multiple YAML documents parsed from the page properties: {:?}",
+                properties
+            );
+        }
+
+        if let Some(yaml) = yaml_documents.pop() {
+            if yaml.is_mapping() {
+                content.properties = yaml;
+            } else {
+                anyhow::bail!("Properties is not a YAML Mapping: {:?}", properties);
             }
         }
 

@@ -62,7 +62,8 @@ impl Page {
 
     pub fn push_property<P: Into<Property>>(&mut self, property: P) {
         self.modified = true;
-        self.content.properties.push(property.into());
+        let property = property.into();
+        self.content.insert_property(property.key, property.value);
     }
 
     pub fn modified(&self) -> bool {
@@ -153,7 +154,7 @@ mod tests {
 
         let raw_content = indoc! {r#"
             ---
-            foo: "bar"
+            foo: bar
             ---
             ```toml
             value = "test"
@@ -164,10 +165,7 @@ mod tests {
         file.write_str(raw_content)?;
         let page: Page = file.path().try_into()?;
 
-        assert!(matches!(
-            page.entries().next(),
-            Some(Entry::CodeBlock(_))
-        ));
+        assert!(matches!(page.entries().next(), Some(Entry::CodeBlock(_))));
         if let Some(Entry::CodeBlock(code_block)) = page.entries().next() {
             assert_eq!("toml", code_block.kind);
             assert_eq!("value = \"test\"\n", code_block.code);
