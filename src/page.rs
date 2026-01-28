@@ -55,7 +55,7 @@ impl Page {
     pub fn prepend_line<L: Display>(&mut self, line: L) {
         let entry = Entry::Line(format!("{}", line));
 
-        if self.content.entries.iter().all(|e| *e != entry) {
+        if self.entries().all(|e| *e != entry) {
             self.modified = true;
             self.content.entries.push_front(entry);
         }
@@ -200,11 +200,8 @@ mod tests {
         file.write_str(raw_content)?;
         let page: Page = file.path().try_into()?;
 
-        assert!(matches!(
-            page.content.entries.front(),
-            Some(Entry::CodeBlock(_))
-        ));
-        if let Some(Entry::CodeBlock(code_block)) = page.content.entries.front() {
+        assert!(matches!(page.entries().next(), Some(Entry::CodeBlock(_))));
+        if let Some(Entry::CodeBlock(code_block)) = page.entries().next() {
             assert_eq!("toml", code_block.kind);
             assert_eq!("value = \"test\"\n", code_block.code);
         }

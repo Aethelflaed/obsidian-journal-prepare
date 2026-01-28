@@ -7,8 +7,8 @@ use std::str::FromStr;
 
 #[derive(Debug, Default)]
 pub struct Content {
-    pub properties: Vec<Property>,
-    pub entries: VecDeque<Entry>,
+    pub(super) properties: Vec<Property>,
+    pub(super) entries: VecDeque<Entry>,
 }
 
 #[derive(Debug, derive_more::Display, PartialEq)]
