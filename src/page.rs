@@ -13,17 +13,12 @@ pub use content::{Content, Entry};
 #[derive(Debug)]
 pub struct Page {
     path: PathBuf,
+    exists: bool,
+    modified: bool,
     content: Content,
 }
 
 impl Page {
-    pub fn new(path: &Path) -> Page {
-        Self {
-            path: path.to_path_buf(),
-            content: Default::default(),
-        }
-    }
-
     pub fn write(&mut self) -> Result<()> {
         if let Some(parent) = self.path.parent() {
             if !parent.exists() {
@@ -36,6 +31,9 @@ impl Page {
             .with_context(|| format!("creating file {:?}", self.path))?;
         write!(file, "{}", self.content)
             .with_context(|| format!("writing file {:?}", self.path))?;
+
+        self.exists = true;
+
         Ok(())
     }
 
@@ -44,11 +42,17 @@ impl Page {
     }
 
     pub fn push_line<L: Display>(&mut self, line: L) {
+        self.modified = true;
         self.content.entries.push(Entry::Line(format!("{}", line)))
     }
 
     pub fn push_property<P: Into<Property>>(&mut self, property: P) {
+        self.modified = true;
         self.content.properties.push(property.into());
+    }
+
+    pub fn modified(&self) -> bool {
+        self.modified
     }
 }
 
@@ -56,11 +60,33 @@ impl TryFrom<&Path> for Page {
     type Error = anyhow::Error;
 
     fn try_from(path: &Path) -> Result<Page> {
-        let mut page = Page::new(path);
-        page.content = std::fs::read_to_string(path)
-            .with_context(|| format!("reading file {:?}", path))?
-            .parse()
-            .with_context(|| format!("reading file {:?}", path))?;
+        Page::try_from(path.to_path_buf())
+    }
+}
+
+impl TryFrom<PathBuf> for Page {
+    type Error = anyhow::Error;
+
+    fn try_from(path: PathBuf) -> Result<Page> {
+        let page = if path.exists() {
+            let content = std::fs::read_to_string(&path)
+                .with_context(|| format!("reading file {:?}", path))?
+                .parse()
+                .with_context(|| format!("reading file {:?}", path))?;
+            Page {
+                path,
+                exists: true,
+                modified: false,
+                content,
+            }
+        } else {
+            Page {
+                path,
+                exists: false,
+                modified: false,
+                content: Content::default(),
+            }
+        };
 
         Ok(page)
     }

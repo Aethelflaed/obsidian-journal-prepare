@@ -112,13 +112,11 @@ impl Vault {
         let path = self.page_file_path(page);
         log::info!("Updating page {}", path.display());
 
-        let mut page = f(Page::new(&path))?;
+        let mut page = f(Page::try_from(path)?)?;
 
-        if path.exists() {
-            page = page + path.as_path().try_into()?;
+        if page.modified() {
+            page.write()?;
         }
-
-        page.write()?;
 
         Ok(())
     }
