@@ -1,5 +1,6 @@
 use super::Property;
 use anyhow::Result;
+use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::ops::Add;
 use std::str::FromStr;
@@ -7,7 +8,7 @@ use std::str::FromStr;
 #[derive(Debug, Default)]
 pub struct Content {
     pub properties: Vec<Property>,
-    pub entries: Vec<Entry>,
+    pub entries: VecDeque<Entry>,
 }
 
 #[derive(Debug, derive_more::Display, PartialEq)]
@@ -91,12 +92,12 @@ impl FromStr for Content {
                         code += "\n";
                     }
                 }
-                content.entries.push(Entry::CodeBlock(CodeBlock {
+                content.entries.push_back(Entry::CodeBlock(CodeBlock {
                     kind: kind.to_owned(),
                     code,
                 }));
             } else {
-                content.entries.push(Entry::Line(line.to_owned()));
+                content.entries.push_back(Entry::Line(line.to_owned()));
             }
         }
 
@@ -117,7 +118,7 @@ impl Add for Content {
         }
         for line in rhs.entries {
             if self.entries.iter().all(|l| *l != line) {
-                self.entries.push(line);
+                self.entries.push_back(line);
             }
         }
         self

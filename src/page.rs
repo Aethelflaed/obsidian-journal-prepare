@@ -41,9 +41,24 @@ impl Page {
         self.content.entries.iter()
     }
 
-    pub fn push_line<L: Display>(&mut self, line: L) {
-        self.modified = true;
-        self.content.entries.push(Entry::Line(format!("{}", line)))
+    pub fn prepend_lines<I, L>(&mut self, lines: I)
+    where
+        I: IntoIterator<Item = L>,
+        L: Display,
+        <I as IntoIterator>::IntoIter: DoubleEndedIterator,
+    {
+        for line in lines.into_iter().rev() {
+            self.prepend_line(line);
+        }
+    }
+
+    pub fn prepend_line<L: Display>(&mut self, line: L) {
+        let entry = Entry::Line(format!("{}", line));
+
+        if self.content.entries.iter().all(|e| *e != entry) {
+            self.modified = true;
+            self.content.entries.push_front(entry);
+        }
     }
 
     pub fn push_property<P: Into<Property>>(&mut self, property: P) {
@@ -186,10 +201,10 @@ mod tests {
         let page: Page = file.path().try_into()?;
 
         assert!(matches!(
-            page.content.entries.first(),
+            page.content.entries.front(),
             Some(Entry::CodeBlock(_))
         ));
-        if let Some(Entry::CodeBlock(code_block)) = page.content.entries.first() {
+        if let Some(Entry::CodeBlock(code_block)) = page.content.entries.front() {
             assert_eq!("toml", code_block.kind);
             assert_eq!("value = \"test\"\n", code_block.code);
         }

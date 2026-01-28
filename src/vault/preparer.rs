@@ -86,9 +86,7 @@ impl Preparer<'_> {
                 page.push_property(year.prev().to_link(self.vault).to_property("prev"));
             }
             if settings.month {
-                for month in year.iter() {
-                    page.push_line(month.to_link(self.vault));
-                }
+                page.prepend_lines(year.iter().map(|month| month.to_link(self.vault)));
             }
 
             Ok(page)
@@ -107,16 +105,20 @@ impl Preparer<'_> {
                 page.push_property(month.prev().to_link(self.vault).to_property("prev"));
             }
             if settings.month {
+                // 31 days max plus 5 weeks headers
+                let mut lines = Vec::with_capacity(36);
                 for (index, date) in month.iter().enumerate() {
                     if index == 0 || date.weekday() == Weekday::Mon {
-                        page.push_line(format!("#### {}", date.iso_week().to_link(self.vault)));
+                        lines.push(format!("#### {}", date.iso_week().to_link(self.vault)));
                     }
-                    page.push_line(format!(
+                    lines.push(format!(
                         "- {} {}",
                         weekday(date),
                         date.to_link(self.vault).into_embedded()
                     ));
                 }
+
+                page.prepend_lines(lines);
             }
 
             Ok(page)
@@ -138,13 +140,13 @@ impl Preparer<'_> {
                 page.push_property(week.prev().to_link(self.vault).to_property("prev"));
             }
             if settings.week {
-                for date in week.iter() {
-                    page.push_line(format!(
+                page.prepend_lines(week.iter().map(|date| {
+                    format!(
                         "- {} {}",
                         weekday(date),
                         date.to_link(self.vault).into_embedded()
-                    ));
-                }
+                    )
+                }));
             }
 
             Ok(page)
@@ -172,11 +174,12 @@ impl Preparer<'_> {
                 page.push_property(date.prev().to_link(self.vault).to_property("prev"));
             }
             if settings.events {
-                for event in self.vault.events() {
-                    if event.matches(date) {
-                        page.push_line(&event.content);
-                    }
-                }
+                page.prepend_lines(
+                    self.vault
+                        .events()
+                        .filter(|ev| ev.matches(date))
+                        .map(|ev| &ev.content),
+                );
             }
 
             Ok(page)

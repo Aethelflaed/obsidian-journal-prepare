@@ -252,11 +252,11 @@ mod tests {
         let name: PageName = "foo".to_string().into();
 
         vault.update(name.clone(), |mut page| {
-            page.push_line("World");
+            page.prepend_line("World");
             Ok(page)
         })?;
         vault.update(name.clone(), |mut page| {
-            page.push_line("Hello");
+            page.prepend_line("Hello");
             Ok(page)
         })?;
 
