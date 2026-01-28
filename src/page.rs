@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use std::fmt::Display;
 use std::io::Write;
-use std::ops::Add;
 use std::path::{Path, PathBuf};
 
 pub mod property;
@@ -107,15 +106,6 @@ impl TryFrom<PathBuf> for Page {
     }
 }
 
-impl Add for Page {
-    type Output = Page;
-
-    fn add(mut self, rhs: Page) -> Self::Output {
-        self.content = self.content + rhs.content;
-        self
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,39 +135,13 @@ mod tests {
             .as_str(),
         )?;
 
-        let mut page: Page = file.path().try_into()?;
+        let mut page = Page::try_from(file.path())?;
         page.write()?;
         file.assert(formatdoc! {"
             ---
             {properties}
             ---
             {entries}"});
-
-        let second_file = temp_dir.child("another page.md");
-        second_file.write_str(indoc! {r#"
-            ---
-            week: "yes"
-            ---
-
-            - DONE Something
-            - TODO Something
-            - One other thing
-        "#})?;
-
-        let second_page: Page = second_file.path().try_into()?;
-        let mut final_page = second_page + page;
-        final_page.write()?;
-
-        second_file.assert(indoc! {r#"
-            ---
-            week: "yes"
-            month: "[[2024/September]]"
-            ---
-            - DONE Something
-            - TODO Something
-            - One other thing
-            - DONE Something else
-        "#});
 
         Ok(())
     }
@@ -200,7 +164,10 @@ mod tests {
         file.write_str(raw_content)?;
         let page: Page = file.path().try_into()?;
 
-        assert!(matches!(page.entries().next(), Some(Entry::CodeBlock(_))));
+        assert!(matches!(
+            page.entries().next(),
+            Some(Entry::CodeBlock(_))
+        ));
         if let Some(Entry::CodeBlock(code_block)) = page.entries().next() {
             assert_eq!("toml", code_block.kind);
             assert_eq!("value = \"test\"\n", code_block.code);

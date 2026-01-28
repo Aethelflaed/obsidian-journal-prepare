@@ -2,7 +2,6 @@ use super::Property;
 use anyhow::Result;
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
-use std::ops::Add;
 use std::str::FromStr;
 
 #[derive(Debug, Default)]
@@ -102,25 +101,5 @@ impl FromStr for Content {
         }
 
         Ok(content)
-    }
-}
-
-impl Add for Content {
-    type Output = Content;
-
-    fn add(mut self, rhs: Content) -> Self::Output {
-        for line in rhs.properties {
-            if let Some(property) = self.properties.iter_mut().find(|l| l.key == line.key) {
-                property.update(line);
-            } else {
-                self.properties.push(line);
-            }
-        }
-        for line in rhs.entries {
-            if self.entries.iter().all(|l| *l != line) {
-                self.entries.push_back(line);
-            }
-        }
-        self
     }
 }
