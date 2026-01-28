@@ -181,10 +181,10 @@ impl Event {
     }
 }
 
-impl TryFrom<CodeBlock> for Event {
+impl TryFrom<&CodeBlock> for Event {
     type Error = Error;
 
-    fn try_from(block: CodeBlock) -> Result<Event> {
+    fn try_from(block: &CodeBlock) -> Result<Event> {
         if block.kind != "toml" {
             anyhow::bail!("Not a toml block");
         }
@@ -214,13 +214,13 @@ mod tests {
                 kind: "foo".to_string(),
                 code: "".to_string(),
             };
-            assert!(Event::try_from(block).is_err());
+            assert!(Event::try_from(&block).is_err());
         }
 
         #[test]
         fn no_frequency() {
             let block = block("");
-            assert!(Event::try_from(block).is_err());
+            assert!(Event::try_from(&block).is_err());
         }
 
         #[test]
@@ -228,7 +228,7 @@ mod tests {
             let block = block(indoc! {r#"
                 frequency = daily
             "#});
-            assert!(Event::try_from(block).is_err());
+            assert!(Event::try_from(&block).is_err());
         }
 
         #[test]
@@ -237,7 +237,7 @@ mod tests {
                 frequency = "daily"
                 content = "Foo"
             "#});
-            let event = Event::try_from(block)?;
+            let event = Event::try_from(&block)?;
             assert!(matches!(event.recurrence, Recurrence::Daily));
             assert_eq!("Foo", event.content);
             Ok(())
@@ -251,7 +251,7 @@ mod tests {
                 from = "2025-01-01"
                 to = "2025-01-31"
             "#});
-            let event = Event::try_from(block)?;
+            let event = Event::try_from(&block)?;
             assert_eq!("2025-01-01".parse().ok(), event.validity.from);
             assert_eq!("2025-01-31".parse().ok(), event.validity.to);
             Ok(())

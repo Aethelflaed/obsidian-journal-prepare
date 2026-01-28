@@ -13,7 +13,7 @@ pub use content::{Content, Entry};
 #[derive(Debug)]
 pub struct Page {
     path: PathBuf,
-    pub content: Content,
+    content: Content,
 }
 
 impl Page {
@@ -37,6 +37,10 @@ impl Page {
         write!(file, "{}", self.content)
             .with_context(|| format!("writing file {:?}", self.path))?;
         Ok(())
+    }
+
+    pub fn entries(&self) -> impl Iterator<Item = &Entry> {
+        self.content.entries.iter()
     }
 
     pub fn push_line<L: Display>(&mut self, line: L) {

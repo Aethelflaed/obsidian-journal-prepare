@@ -69,7 +69,7 @@ impl Vault {
             return Ok(());
         }
         let event_page = Page::try_from(event_page_path.as_path())?;
-        for entry in event_page.content.entries {
+        for entry in event_page.entries() {
             if let Entry::CodeBlock(block) = entry {
                 if block.kind.as_str() == "toml" {
                     let event = block.try_into()?;
@@ -263,7 +263,14 @@ mod tests {
         })?;
 
         let page: Page = vault.page_file_path(name).as_path().try_into()?;
-        assert_eq!(format!("{}", page.content), "---\n---\nHello\nWorld\n");
+
+        assert_eq!(
+            page.entries()
+                .map(|e| format!("{}", e))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            "Hello\nWorld"
+        );
 
         Ok(())
     }
