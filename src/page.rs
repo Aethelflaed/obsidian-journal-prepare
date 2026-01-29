@@ -51,19 +51,19 @@ impl Page {
     pub fn prepend_line<L: Display>(&mut self, line: L) {
         let entry = Entry::Line(format!("{}", line));
 
-        if self.entries().all(|e| *e != entry) {
+        if self.content.prepend_entry(entry) {
             self.modified = true;
-            self.content.entries.push_front(entry);
         }
     }
 
     pub fn insert_property<K, V>(&mut self, key: K, value: V)
     where
         K: Into<String>,
-        V: Display
+        V: Display,
     {
         self.modified = true;
-        self.content.insert_property(key.into(), format!("{}", value));
+        self.content
+            .insert_property(key.into(), format!("{}", value));
     }
 
     pub fn modified(&self) -> bool {
@@ -143,35 +143,6 @@ mod tests {
             {properties}
             ---
             {entries}"});
-
-        Ok(())
-    }
-
-    #[test]
-    fn codeblocks() -> anyhow::Result<()> {
-        let temp_dir = assert_fs::TempDir::new()?;
-        let file = temp_dir.child("page.md");
-
-        let raw_content = indoc! {r#"
-            ---
-            foo: bar
-            ---
-            ```toml
-            value = "test"
-            ```
-            Hello World
-        "#};
-
-        file.write_str(raw_content)?;
-        let page: Page = file.path().try_into()?;
-
-        assert!(matches!(page.entries().next(), Some(Entry::CodeBlock(_))));
-        if let Some(Entry::CodeBlock(code_block)) = page.entries().next() {
-            assert_eq!("toml", code_block.kind);
-            assert_eq!("value = \"test\"\n", code_block.code);
-        }
-
-        assert_eq!(raw_content, format!("{}", page.content).as_str());
 
         Ok(())
     }

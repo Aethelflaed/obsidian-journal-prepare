@@ -258,7 +258,7 @@ mod tests {
 
         let path = vault.page_file_path(name.clone());
         let content = std::fs::read_to_string(&path)?;
-        assert_eq!(content, "---\n---\nWorld\n");
+        assert_eq!(content, "World\n");
 
         vault.update(name.clone(), |mut page| {
             page.prepend_line("Hello");
@@ -267,7 +267,7 @@ mod tests {
 
         let path = vault.page_file_path(name.clone());
         let content = std::fs::read_to_string(&path)?;
-        assert_eq!(content, "---\n---\nHello\nWorld\n");
+        assert_eq!(content, "Hello\nWorld\n");
 
         Ok(())
     }

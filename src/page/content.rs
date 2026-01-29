@@ -29,9 +29,18 @@ impl Content {
             YamlOwned::Value(ScalarOwned::String(value)),
         );
     }
+
+    pub(super) fn prepend_entry(&mut self, entry: Entry) -> bool {
+        if self.entries.iter().all(|e| *e != entry) {
+            self.entries.push_front(entry);
+            true
+        } else {
+            false
+        }
+    }
 }
 
-#[derive(Debug, derive_more::Display, PartialEq)]
+#[derive(Debug, derive_more::From, derive_more::Display, PartialEq)]
 #[display("{_variant}")]
 pub enum Entry {
     Line(String),
@@ -64,11 +73,8 @@ impl Display for Content {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         use saphyr::{Yaml, YamlEmitter};
 
-        if self.properties.is_empty_collection() {
-            writeln!(f, "---\n---")?;
-        } else {
-            let mut emitter = YamlEmitter::new(f);
-            emitter
+        if !self.properties.is_empty_collection() {
+            YamlEmitter::new(f)
                 .dump(&Yaml::from(&self.properties))
                 .map_err(|_| std::fmt::Error)?;
             writeln!(f, "\n---")?;
@@ -97,56 +103,232 @@ impl FromStr for Content {
         let mut content = Content::default();
         let mut lines = string.lines().peekable();
 
-        let mut properties = String::new();
-
+        // If it starts with a document separator, it means there is properties to read
         if lines.next_if_eq(&"---").is_some() {
+            let mut properties = String::new();
             for line in lines.by_ref() {
                 if line == "---" {
                     break;
                 } else {
-                    properties.push_str(line);
-                    properties.push('\n');
+                    properties = properties + line + "\n";
+                }
+            }
+
+            use saphyr::LoadableYamlNode;
+            let mut yaml_documents = YamlOwned::load_from_str(properties.as_str())?;
+            if yaml_documents.len() > 1 {
+                // This shouldn't be possible as we read the content until the second document
+                // separator (---)
+                anyhow::bail!(
+                    "Multiple YAML documents parsed from the page properties: {:?}",
+                    properties
+                );
+            }
+
+            if let Some(yaml) = yaml_documents.pop() {
+                if yaml.is_mapping() {
+                    content.properties = yaml;
+                } else {
+                    anyhow::bail!("Properties is not a YAML Mapping: {:?}", properties);
                 }
             }
         }
 
-        use saphyr::LoadableYamlNode;
-        let mut yaml_documents = YamlOwned::load_from_str(properties.as_str())?;
-        if yaml_documents.len() > 1 {
-            anyhow::bail!(
-                "Multiple YAML documents parsed from the page properties: {:?}",
-                properties
-            );
-        }
-
-        if let Some(yaml) = yaml_documents.pop() {
-            if yaml.is_mapping() {
-                content.properties = yaml;
-            } else {
-                anyhow::bail!("Properties is not a YAML Mapping: {:?}", properties);
-            }
-        }
-
         while let Some(line) = lines.next() {
-            if let Some(kind) = line.strip_prefix("```") {
+            let entry = if let Some(kind) = line.strip_prefix("```") {
                 let mut code = String::new();
                 for line in lines.by_ref() {
                     if line == "```" {
                         break;
                     } else {
-                        code += line;
-                        code += "\n";
+                        code = code + line + "\n";
                     }
                 }
-                content.entries.push_back(Entry::CodeBlock(CodeBlock {
+
+                CodeBlock {
                     kind: kind.to_owned(),
                     code,
-                }));
+                }
+                .into()
             } else {
-                content.entries.push_back(Entry::Line(line.to_owned()));
-            }
+                line.to_owned().into()
+            };
+
+            content.entries.push_back(entry);
         }
 
         Ok(content)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use indoc::indoc;
+    use saphyr::{Scalar, Yaml, Yaml::Value};
+
+    #[test]
+    fn basic_document() -> Result<()> {
+        let string = "Hello World\n";
+        let content = Content::from_str(string)?;
+        assert!(content.properties.is_empty_collection());
+        assert_eq!(content.entries.len(), 1);
+
+        assert_eq!(string, format!("{content}").as_str());
+
+        Ok(())
+    }
+
+    #[test]
+    fn adds_final_new_line() -> Result<()> {
+        let string = "Hello World";
+        let content = Content::from_str(string)?;
+        assert!(content.properties.is_empty_collection());
+        assert_eq!(content.entries.len(), 1);
+
+        assert_eq!("Hello World\n", format!("{content}").as_str());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_block_code_as_single_entry() -> Result<()> {
+        let string = "```\nfoo\n```\n";
+        let content = Content::from_str(string)?;
+        assert!(content.properties.is_empty_collection());
+        assert_eq!(content.entries.len(), 1);
+
+        let Entry::CodeBlock(ref code_block) = content.entries[0] else {
+            panic!("Code block not parsed as code block");
+        };
+
+        assert_eq!("", code_block.kind.as_str());
+        assert_eq!("foo\n", code_block.code.as_str());
+
+        assert_eq!(string, format!("{content}").as_str());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_toml_block_code_as_single_entry() -> Result<()> {
+        let string = "```toml\nfoo\n```\n";
+        let content = Content::from_str(string)?;
+        assert!(content.properties.is_empty_collection());
+        assert_eq!(content.entries.len(), 1);
+
+        let Entry::CodeBlock(ref code_block) = content.entries[0] else {
+            panic!("Code block not parsed as code block");
+        };
+
+        assert_eq!("toml", code_block.kind.as_str());
+        assert_eq!("foo\n", code_block.code.as_str());
+
+        assert_eq!(string, format!("{content}").as_str());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_multiple_entries_and_remove_initial_empty_lines() -> Result<()> {
+        let string = indoc! {"
+
+
+            Hello World
+            ```toml
+            Block
+            ```
+
+            - test
+            - foo
+            ```sh
+            fkjdlsk
+            ```
+        "};
+        let content = Content::from_str(string)?;
+        assert!(content.properties.is_empty_collection());
+        assert_eq!(content.entries.len(), 8);
+
+        assert_eq!(string, format!("\n\n{content}").as_str());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_simple_metadata() -> Result<()> {
+        let string = indoc! {"
+            ---
+            foo: bar
+            ---
+        "};
+        let content = Content::from_str(string)?;
+        assert!(!content.properties.is_empty_collection());
+        assert_eq!(content.entries.len(), 0);
+        assert_eq!(string, format!("{content}").as_str());
+
+        let properties = Yaml::from(&content.properties);
+        assert_eq!(
+            properties.as_mapping_get("foo").unwrap(),
+            &Value(Scalar::String("bar".into()))
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_multiple_metadata() -> Result<()> {
+        let string = indoc! {"
+            ---
+            foo: bar
+            baz: 1
+            date: 2026-01-29
+            ---
+        "};
+        let content = Content::from_str(string)?;
+        assert!(!content.properties.is_empty_collection());
+        assert_eq!(content.entries.len(), 0);
+        assert_eq!(string, format!("{content}").as_str());
+
+        let properties = Yaml::from(&content.properties);
+        assert_eq!(
+            properties.as_mapping_get("foo").unwrap(),
+            &Value(Scalar::String("bar".into()))
+        );
+        assert_eq!(
+            properties.as_mapping_get("baz").unwrap(),
+            &Value(Scalar::Integer(1))
+        );
+        assert_eq!(
+            properties.as_mapping_get("date").unwrap(),
+            &Value(Scalar::String("2026-01-29".into()))
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_sequence_metadata_with_content() -> Result<()> {
+        let string = indoc! {"
+            ---
+            aliases:
+              - Note
+            ---
+            # This is a page
+
+            Blabla
+        "};
+
+        let content = Content::from_str(string)?;
+        assert!(!content.properties.is_empty_collection());
+        assert_eq!(content.entries.len(), 3);
+        assert_eq!(string, format!("{content}").as_str());
+
+        let properties = Yaml::from(&content.properties);
+        assert_eq!(
+            properties.as_mapping_get("aliases").unwrap().as_sequence().unwrap(),
+            &vec![Value(Scalar::String("Note".into()))]
+        );
+
+        Ok(())
     }
 }
