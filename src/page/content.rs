@@ -331,4 +331,38 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn insert_property_on_default_content() -> Result<()> {
+        let mut content = Content::default();
+        content.insert_property("foo".to_owned(), "bar".to_owned());
+
+        let string = indoc! {"
+            ---
+            foo: bar
+            ---
+        "};
+        assert_eq!(string, format!("{content}").as_str());
+
+        Ok(())
+    }
+
+    #[test]
+    fn insert_property_update_existing() -> Result<()> {
+        let string = indoc! {"
+            ---
+            foo: bar
+            ---
+        "};
+        let mut content = Content::from_str(string)?;
+        content.insert_property("foo".to_owned(), "baz".to_owned());
+
+        assert_eq!(indoc! {"
+            ---
+            foo: baz
+            ---
+        "}, format!("{content}").as_str());
+
+        Ok(())
+    }
 }
