@@ -43,37 +43,37 @@ impl Preparer<'_> {
         let mut month = Month::from(date);
         let mut week = date.iso_week();
 
-        self.print_day(date)?;
-        self.print_week(week)?;
-        self.print_month(month)?;
-        self.print_year(year)?;
+        self.day(date)?;
+        self.week(week)?;
+        self.month(month)?;
+        self.year(year)?;
 
         while date < self.to {
             date = date + Days::new(1);
-            self.print_day(date)?;
+            self.day(date)?;
 
             let new_week = date.iso_week();
             if week != new_week {
-                self.print_week(new_week)?;
+                self.week(new_week)?;
                 week = new_week;
             }
 
             let new_year = Year::from(date.year());
             if year != new_year {
-                self.print_year(new_year)?;
+                self.year(new_year)?;
                 year = new_year;
             }
 
             let new_month = Month::from(date);
             if month != new_month {
-                self.print_month(new_month)?;
+                self.month(new_month)?;
                 month = new_month;
             }
         }
         Ok(())
     }
 
-    fn print_year(&self, year: Year) -> Result<()> {
+    fn year(&self, year: Year) -> Result<()> {
         let settings = self.page_options.year.settings();
         if settings.is_empty() {
             return Ok(());
@@ -92,7 +92,7 @@ impl Preparer<'_> {
         })
     }
 
-    fn print_month(&self, month: Month) -> Result<()> {
+    fn month(&self, month: Month) -> Result<()> {
         let settings = self.page_options.month.settings();
         if settings.is_empty() {
             return Ok(());
@@ -124,7 +124,7 @@ impl Preparer<'_> {
         })
     }
 
-    fn print_week(&self, week: IsoWeek) -> Result<()> {
+    fn week(&self, week: IsoWeek) -> Result<()> {
         let settings = self.page_options.week.settings();
         if settings.is_empty() {
             return Ok(());
@@ -152,7 +152,7 @@ impl Preparer<'_> {
         })
     }
 
-    fn print_day(&self, date: NaiveDate) -> Result<()> {
+    fn day(&self, date: NaiveDate) -> Result<()> {
         let settings = self.page_options.day.settings();
         if settings.is_empty() {
             return Ok(());
