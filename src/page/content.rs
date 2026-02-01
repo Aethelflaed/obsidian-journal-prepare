@@ -19,18 +19,27 @@ impl Default for Content {
     }
 }
 
+fn to_yaml_str(string: String) -> YamlOwned {
+    YamlOwned::Value(ScalarOwned::String(string))
+}
+
 impl Content {
-    pub(super) fn insert_property(&mut self, key: String, value: String) {
+    /// Insert the given property (key, value)
+    ///
+    /// Return value indicates if the content has been modified or not
+    pub(super) fn insert_property(&mut self, key: String, value: String) -> bool {
         let Some(mapping) = self.properties.as_mapping_mut() else {
             unreachable!()
         };
-        mapping.insert(
-            YamlOwned::Value(ScalarOwned::String(key)),
-            YamlOwned::Value(ScalarOwned::String(value)),
-        );
+        mapping
+            .insert(to_yaml_str(key), to_yaml_str(value.clone()))
+            .map(|previous_value| previous_value != to_yaml_str(value))
+            .unwrap_or(true)
     }
 
     /// Prepend the given entry if it is not already present
+    ///
+    /// Return value indicates if the content has been modified or not
     pub(super) fn prepend_unique_entry(&mut self, entry: Entry) -> bool {
         if self.entries.iter().all(|e| *e != entry) {
             self.entries.push_front(entry);
@@ -326,7 +335,11 @@ mod tests {
 
         let properties = Yaml::from(&content.properties);
         assert_eq!(
-            properties.as_mapping_get("aliases").unwrap().as_sequence().unwrap(),
+            properties
+                .as_mapping_get("aliases")
+                .unwrap()
+                .as_sequence()
+                .unwrap(),
             &vec![Value(Scalar::String("Note".into()))]
         );
 
@@ -336,7 +349,7 @@ mod tests {
     #[test]
     fn insert_property_on_default_content() -> Result<()> {
         let mut content = Content::default();
-        content.insert_property("foo".to_owned(), "bar".to_owned());
+        assert!(content.insert_property("foo".to_owned(), "bar".to_owned()));
 
         let string = indoc! {"
             ---
@@ -356,13 +369,17 @@ mod tests {
             ---
         "};
         let mut content = Content::from_str(string)?;
-        content.insert_property("foo".to_owned(), "baz".to_owned());
+        assert!(!content.insert_property("foo".to_owned(), "bar".to_owned()));
+        assert!(content.insert_property("foo".to_owned(), "baz".to_owned()));
 
-        assert_eq!(indoc! {"
+        assert_eq!(
+            indoc! {"
             ---
             foo: baz
             ---
-        "}, format!("{content}").as_str());
+        "},
+            format!("{content}").as_str()
+        );
 
         Ok(())
     }

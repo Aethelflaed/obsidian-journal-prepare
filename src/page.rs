@@ -29,6 +29,7 @@ impl Page {
             .with_context(|| format!("writing file {:?}", self.path))?;
 
         self.exists = true;
+        self.modified = false;
 
         Ok(())
     }
@@ -61,13 +62,20 @@ impl Page {
         K: Into<String>,
         V: Display,
     {
-        self.modified = true;
-        self.content
-            .insert_property(key.into(), format!("{}", value));
+        if self
+            .content
+            .insert_property(key.into(), format!("{}", value))
+        {
+            self.modified = true;
+        }
     }
 
     pub fn modified(&self) -> bool {
         self.modified
+    }
+
+    pub fn exists(&self) -> bool {
+        self.exists
     }
 }
 
@@ -114,7 +122,45 @@ mod tests {
     use indoc::{formatdoc, indoc};
 
     #[test]
-    fn page() -> anyhow::Result<()> {
+    fn track_existence_and_modification() -> Result<()> {
+        let temp_dir = assert_fs::TempDir::new()?;
+        let file = temp_dir.child("dir/page.md");
+        let mut page = Page::try_from(file.path())?;
+
+        assert!(!page.exists());
+        assert!(!page.modified());
+
+        page.insert_property("foo", "bar");
+        page.prepend_line("Hello, World");
+
+        assert!(!page.exists());
+        assert!(page.modified());
+
+        page.write()?;
+        file.assert(indoc! {"
+            ---
+            foo: bar
+            ---
+            Hello, World
+        "});
+
+        assert!(page.exists());
+        assert!(!page.modified());
+
+        page.insert_property("foo", "bar");
+        assert!(!page.modified());
+
+        page.prepend_line("Hello, World");
+        assert!(!page.modified());
+
+        page.prepend_line("Hello World");
+        assert!(page.modified());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_page_from_path_and_write_it_again() -> Result<()> {
         let temp_dir = assert_fs::TempDir::new()?;
         let file = temp_dir.child("page.md");
 
