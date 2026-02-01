@@ -51,7 +51,7 @@ impl Page {
     pub fn prepend_line<L: Display>(&mut self, line: L) {
         let entry = Entry::Line(format!("{}", line));
 
-        if self.content.prepend_entry(entry) {
+        if self.content.prepend_unique_entry(entry) {
             self.modified = true;
         }
     }

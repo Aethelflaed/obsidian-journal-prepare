@@ -30,7 +30,8 @@ impl Content {
         );
     }
 
-    pub(super) fn prepend_entry(&mut self, entry: Entry) -> bool {
+    /// Prepend the given entry if it is not already present
+    pub(super) fn prepend_unique_entry(&mut self, entry: Entry) -> bool {
         if self.entries.iter().all(|e| *e != entry) {
             self.entries.push_front(entry);
             true
@@ -40,7 +41,7 @@ impl Content {
     }
 }
 
-#[derive(Debug, derive_more::From, derive_more::Display, PartialEq)]
+#[derive(Debug, Clone, derive_more::From, derive_more::Display, PartialEq)]
 #[display("{_variant}")]
 pub enum Entry {
     Line(String),
@@ -56,7 +57,7 @@ impl Entry {
     }
 }
 
-#[derive(Debug, derive_more::Display, PartialEq)]
+#[derive(Debug, Clone, derive_more::Display, PartialEq)]
 #[display("```{kind}\n{code}```")]
 pub struct CodeBlock {
     pub kind: String,
@@ -362,6 +363,29 @@ mod tests {
             foo: baz
             ---
         "}, format!("{content}").as_str());
+
+        Ok(())
+    }
+
+    #[test]
+    fn prepend_unique_entry_on_default_content() -> Result<()> {
+        let mut content = Content::default();
+
+        let entry = Entry::Line("Hello, World".to_owned());
+        assert!(content.prepend_unique_entry(entry.clone()));
+        assert!(!content.prepend_unique_entry(entry.clone()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn prepend_unique_entry_update_existing() -> Result<()> {
+        let string = indoc! {"
+            Hello, World
+        "};
+        let mut content = Content::from_str(string)?;
+        let entry = Entry::Line("Hello, World".to_owned());
+        assert!(!content.prepend_unique_entry(entry.clone()));
 
         Ok(())
     }
