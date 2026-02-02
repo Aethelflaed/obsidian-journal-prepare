@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
     journals_folder: Option<String>,
@@ -15,10 +15,19 @@ pub struct Config {
     event_files: Vec<String>,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            journals_folder: None,
+            settings: PageSettings::default(),
+            event_files: vec!["events/recurring.md".to_owned()],
+        }
+    }
+}
+
 #[derive(Debug, derive_more::From, derive_more::Display, derive_more::Error)]
 pub enum ConfigError {
     Unexisting,
-    Empty,
     ReadingFile(anyhow::Error),
     Toml(toml::de::Error),
 }
@@ -42,10 +51,11 @@ impl TryFrom<&Path> for Config {
             }
         }
 
-        configs
+        Ok(configs
             .into_iter()
-            .reduce(|config_a, config_b| config_a.merge(config_b))
-            .ok_or(ConfigError::Empty)
+            .fold(Config::default(), |config_a, config_b| {
+                config_a.merge(config_b)
+            }))
     }
 }
 
@@ -54,7 +64,7 @@ impl Config {
         let mut config = match Self::try_from(path.join("journal-preparation-config.md").as_path())
         {
             Ok(config) => config,
-            Err(ConfigError::Empty) | Err(ConfigError::Unexisting) => Self::default(),
+            Err(ConfigError::Unexisting) => Self::default(),
             Err(e) => Err(e)?,
         };
 
@@ -171,6 +181,7 @@ mod tests {
         config.write_str(indoc! {r#"
             ```toml
             journals_folder = "Foo"
+            event_files = ["Hello"]
             [day]
             day_of_week = true
             ```
@@ -179,6 +190,10 @@ mod tests {
         let config = Config::new(temp_dir.path())?;
 
         assert_eq!(Some("Foo"), config.journals_folder());
+        assert_eq!(
+            vec!["events/recurring.md".to_owned(), "Hello".to_owned()],
+            config.event_files
+        );
         assert!(config.settings.day.is_some());
         assert!(config.settings.week.is_none());
         assert!(config.settings.month.is_none());
@@ -196,11 +211,16 @@ mod tests {
         config.write_str(indoc! {r#"
             ```toml
             journals_folder = "Foo"
+            event_files = ["Hello"]
             [day]
             day_of_week = true
             ```
 
             ```toml
+            journals_folder = "Bar"
+            event_files = [
+                "World"
+            ]
             [week]
             nav_link = true
             ```
@@ -210,6 +230,14 @@ mod tests {
         println!("{config:?}");
 
         assert_eq!(Some("Foo"), config.journals_folder());
+        assert_eq!(
+            vec![
+                "events/recurring.md".to_owned(),
+                "Hello".to_owned(),
+                "World".to_owned()
+            ],
+            config.event_files
+        );
         assert!(config.settings.day.is_some());
         assert!(config.settings.week.is_some());
         assert!(config.settings.month.is_none());
