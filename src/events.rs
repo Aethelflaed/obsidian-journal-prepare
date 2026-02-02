@@ -45,7 +45,13 @@ impl TryFrom<SerdeEvent> for Event {
                 if !event.yeardays.is_empty() {
                     anyhow::bail!("`yeardays` not allowed for monthly recurrence");
                 }
-                Recurrence::Monthly(event.monthdays)
+                Recurrence::Monthly(
+                    event
+                        .monthdays
+                        .into_iter()
+                        .map(Monthday::try_from)
+                        .collect::<Result<Vec<_>>>()?,
+                )
             }
             Frequency::Yearly => {
                 if !event.weekdays.is_empty() {
@@ -54,7 +60,13 @@ impl TryFrom<SerdeEvent> for Event {
                 if !event.monthdays.is_empty() {
                     anyhow::bail!("`monthdays` not allowed for yearly recurrence");
                 }
-                Recurrence::Yearly(event.yeardays)
+                Recurrence::Yearly(
+                    event
+                        .yeardays
+                        .into_iter()
+                        .map(Yearday::try_from)
+                        .collect::<Result<Vec<_>>>()?,
+                )
             }
         };
 
@@ -74,9 +86,9 @@ pub struct SerdeEvent {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     weekdays: Vec<Weekday>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    monthdays: Vec<usize>,
+    monthdays: Vec<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    yeardays: Vec<usize>,
+    yeardays: Vec<u32>,
     pub content: String,
     #[serde(flatten)]
     validity: DateRange,
@@ -105,12 +117,12 @@ impl From<Event> for SerdeEvent {
             },
             Recurrence::Monthly(monthdays) => SerdeEvent {
                 frequency: Frequency::Monthly,
-                monthdays,
+                monthdays: monthdays.into_iter().map(|d| d.0).collect(),
                 ..serde_event
             },
             Recurrence::Yearly(yeardays) => SerdeEvent {
                 frequency: Frequency::Yearly,
-                yeardays,
+                yeardays: yeardays.into_iter().map(|d| d.0).collect(),
                 ..serde_event
             },
             _ => serde_event,
@@ -124,9 +136,51 @@ pub enum Recurrence {
     /// Weekly every Weekday
     Weekly(Vec<Weekday>),
     /// Monthly each Nth day, starting from 1
-    Monthly(Vec<usize>),
+    Monthly(Vec<Monthday>),
     /// Yearly each Nth day, starting from 1
-    Yearly(Vec<usize>),
+    Yearly(Vec<Yearday>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Monthday(u32);
+
+impl TryFrom<u32> for Monthday {
+    type Error = Error;
+
+    fn try_from(index: u32) -> Result<Monthday> {
+        if index > 0 && index < 32 {
+            Ok(Self(index))
+        } else {
+            anyhow::bail!("Monthday {index} is invalid")
+        }
+    }
+}
+
+impl PartialEq<u32> for Monthday {
+    fn eq(&self, other: &u32) -> bool {
+        self.0 == *other
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Yearday(u32);
+
+impl TryFrom<u32> for Yearday {
+    type Error = Error;
+
+    fn try_from(index: u32) -> Result<Yearday> {
+        if index > 0 && index < 367 {
+            Ok(Self(index))
+        } else {
+            anyhow::bail!("Yearday {index} is invalid")
+        }
+    }
+}
+
+impl PartialEq<u32> for Yearday {
+    fn eq(&self, other: &u32) -> bool {
+        self.0 == *other
+    }
 }
 
 impl Recurrence {
@@ -135,8 +189,8 @@ impl Recurrence {
         match self {
             Daily => true,
             Weekly(weekdays) => weekdays.iter().any(|day| *day == date.weekday()),
-            Monthly(monthdays) => monthdays.iter().any(|day| *day == date.day() as usize),
-            Yearly(yeardays) => yeardays.iter().any(|day| *day == date.ordinal() as usize),
+            Monthly(monthdays) => monthdays.iter().any(|day| *day == date.day()),
+            Yearly(yeardays) => yeardays.iter().any(|day| *day == date.ordinal()),
         }
     }
 }
