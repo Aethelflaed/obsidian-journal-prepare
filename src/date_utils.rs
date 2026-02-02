@@ -231,19 +231,110 @@ mod tests {
 
     #[test]
     fn month_num_days() {
-        assert_eq!(31, Month { year: 2025, month: 1 }.num_days());
-        assert_eq!(28, Month { year: 2025, month: 2 }.num_days());
-        assert_eq!(29, Month { year: 2024, month: 2 }.num_days());
-        assert_eq!(31, Month { year: 2025, month: 3 }.num_days());
-        assert_eq!(30, Month { year: 2025, month: 4 }.num_days());
-        assert_eq!(31, Month { year: 2025, month: 5 }.num_days());
-        assert_eq!(30, Month { year: 2025, month: 6 }.num_days());
-        assert_eq!(31, Month { year: 2025, month: 7 }.num_days());
-        assert_eq!(31, Month { year: 2025, month: 8 }.num_days());
-        assert_eq!(30, Month { year: 2025, month: 9 }.num_days());
-        assert_eq!(31, Month { year: 2025, month: 10 }.num_days());
-        assert_eq!(30, Month { year: 2025, month: 11 }.num_days());
-        assert_eq!(31, Month { year: 2025, month: 12 }.num_days());
+        assert_eq!(
+            31,
+            Month {
+                year: 2025,
+                month: 1
+            }
+            .num_days()
+        );
+        assert_eq!(
+            28,
+            Month {
+                year: 2025,
+                month: 2
+            }
+            .num_days()
+        );
+        assert_eq!(
+            29,
+            Month {
+                year: 2024,
+                month: 2
+            }
+            .num_days()
+        );
+        assert_eq!(
+            31,
+            Month {
+                year: 2025,
+                month: 3
+            }
+            .num_days()
+        );
+        assert_eq!(
+            30,
+            Month {
+                year: 2025,
+                month: 4
+            }
+            .num_days()
+        );
+        assert_eq!(
+            31,
+            Month {
+                year: 2025,
+                month: 5
+            }
+            .num_days()
+        );
+        assert_eq!(
+            30,
+            Month {
+                year: 2025,
+                month: 6
+            }
+            .num_days()
+        );
+        assert_eq!(
+            31,
+            Month {
+                year: 2025,
+                month: 7
+            }
+            .num_days()
+        );
+        assert_eq!(
+            31,
+            Month {
+                year: 2025,
+                month: 8
+            }
+            .num_days()
+        );
+        assert_eq!(
+            30,
+            Month {
+                year: 2025,
+                month: 9
+            }
+            .num_days()
+        );
+        assert_eq!(
+            31,
+            Month {
+                year: 2025,
+                month: 10
+            }
+            .num_days()
+        );
+        assert_eq!(
+            30,
+            Month {
+                year: 2025,
+                month: 11
+            }
+            .num_days()
+        );
+        assert_eq!(
+            31,
+            Month {
+                year: 2025,
+                month: 12
+            }
+            .num_days()
+        );
     }
 
     #[test]

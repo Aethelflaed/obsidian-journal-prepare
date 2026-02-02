@@ -111,41 +111,6 @@ pub struct SerdeEvent {
     exceptions: Vec<DateRange>,
 }
 
-impl From<Event> for SerdeEvent {
-    fn from(event: Event) -> SerdeEvent {
-        let recurrence = event.recurrence;
-        let serde_event = SerdeEvent {
-            frequency: Frequency::Daily,
-            weekdays: Default::default(),
-            monthdays: Default::default(),
-            yeardays: Default::default(),
-            index: None,
-            content: event.content,
-            validity: event.validity,
-            exceptions: event.exceptions,
-        };
-
-        match recurrence {
-            Recurrence::Weekly(weekdays) => SerdeEvent {
-                frequency: Frequency::Weekly,
-                weekdays,
-                ..serde_event
-            },
-            Recurrence::Monthly(monthdays) => SerdeEvent {
-                frequency: Frequency::Monthly,
-                monthdays: monthdays.into_iter().map(|d| d.0).collect(),
-                ..serde_event
-            },
-            Recurrence::Yearly(yeardays) => SerdeEvent {
-                frequency: Frequency::Yearly,
-                yeardays: yeardays.into_iter().map(|d| d.0).collect(),
-                ..serde_event
-            },
-            _ => serde_event,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Recurrence {
     Daily,
@@ -338,6 +303,49 @@ mod tests {
         )));
         assert_eq!("2025-01-01".parse().ok(), event.validity.from);
         assert_eq!("2025-01-31".parse().ok(), event.validity.to);
+    }
+
+    #[test]
+    fn recurrence_matches() {
+        use Recurrence::*;
+        use WeekIndex::*;
+        use Weekday::*;
+
+        assert!(Daily.matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(Daily.matches(NaiveDate::from_ymd_opt(2024, 2, 29).unwrap()));
+
+        assert!(Weekly(vec![Mon]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(!Weekly(vec![Mon]).matches(NaiveDate::from_ymd_opt(2026, 2, 3).unwrap()));
+        assert!(Weekly(vec![Mon, Tue]).matches(NaiveDate::from_ymd_opt(2026, 2, 3).unwrap()));
+
+        assert!(Monthly(vec![Monthday(1)]).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
+        assert!(!Monthly(vec![Monthday(1)]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(Monthly(vec![Monthday(1), Monthday(2)])
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+
+        assert!(!RelativeMonthly(vec![Mon], First)
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
+        assert!(
+            RelativeMonthly(vec![Sun], First).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap())
+        );
+        assert!(RelativeMonthly(vec![Sun, Mon], First)
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(!RelativeMonthly(vec![Sun, Mon], First)
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 8).unwrap()));
+        assert!(RelativeMonthly(vec![Sun, Mon], Second)
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 8).unwrap()));
+        assert!(!RelativeMonthly(vec![Sun, Mon], Third)
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(RelativeMonthly(vec![Sun], Fourth)
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 22).unwrap()));
+        assert!(
+            RelativeMonthly(vec![Sun], Last).matches(NaiveDate::from_ymd_opt(2026, 2, 22).unwrap())
+        );
+
+        assert!(Yearly(vec![Yearday(32)]).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
+        assert!(!Yearly(vec![Yearday(32)]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(Yearly(vec![Yearday(32), Yearday(33)])
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
     }
 
     mod daily {
