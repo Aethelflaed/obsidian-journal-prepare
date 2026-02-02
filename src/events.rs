@@ -1,4 +1,4 @@
-use crate::date_utils::Month;
+use crate::date_utils::{InvalidMonthday, InvalidYearday, Month, Monthday, Yearday};
 use crate::page::content::CodeBlock;
 use anyhow::{Error, Result};
 use chrono::{Datelike, NaiveDate, Weekday};
@@ -55,7 +55,7 @@ impl TryFrom<SerdeEvent> for Event {
                             .monthdays
                             .into_iter()
                             .map(Monthday::try_from)
-                            .collect::<Result<Vec<_>>>()?,
+                            .collect::<Result<Vec<_>, InvalidMonthday>>()?,
                     )
                 } else {
                     Recurrence::RelativeMonthly(
@@ -79,7 +79,7 @@ impl TryFrom<SerdeEvent> for Event {
                         .yeardays
                         .into_iter()
                         .map(Yearday::try_from)
-                        .collect::<Result<Vec<_>>>()?,
+                        .collect::<Result<Vec<_>, InvalidYearday>>()?,
                 )
             }
         };
@@ -124,44 +124,14 @@ pub enum Recurrence {
     Yearly(Vec<Yearday>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Monthday(u32);
-
-impl TryFrom<u32> for Monthday {
-    type Error = Error;
-
-    fn try_from(index: u32) -> Result<Monthday> {
-        if index > 0 && index < 32 {
-            Ok(Self(index))
-        } else {
-            anyhow::bail!("Monthday {index} is invalid")
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Yearday(u32);
-
-impl TryFrom<u32> for Yearday {
-    type Error = Error;
-
-    fn try_from(index: u32) -> Result<Yearday> {
-        if index > 0 && index < 367 {
-            Ok(Self(index))
-        } else {
-            anyhow::bail!("Yearday {index} is invalid")
-        }
-    }
-}
-
 impl Recurrence {
     pub fn matches(&self, date: NaiveDate) -> bool {
         use Recurrence::*;
         match self {
             Daily => true,
             Weekly(weekdays) => weekdays.contains(&date.weekday()),
-            Monthly(monthdays) => monthdays.contains(&Monthday(date.day())),
-            Yearly(yeardays) => yeardays.contains(&Yearday(date.ordinal())),
+            Monthly(monthdays) => monthdays.contains(&Monthday::try_from(date.day()).unwrap()),
+            Yearly(yeardays) => yeardays.contains(&Yearday::try_from(date.ordinal()).unwrap()),
 
             RelativeMonthly(weekdays, index) => {
                 if weekdays.contains(&date.weekday()) {
@@ -259,6 +229,14 @@ mod tests {
         }
     }
 
+    fn monthday(index: u32) -> Monthday {
+        Monthday::try_from(index).unwrap()
+    }
+
+    fn yearday(index: u32) -> Yearday {
+        Yearday::try_from(index).unwrap()
+    }
+
     #[test]
     fn try_from_not_a_toml_block() {
         assert_err!(Event::try_from(&CodeBlock {
@@ -318,9 +296,9 @@ mod tests {
         assert!(!Weekly(vec![Mon]).matches(NaiveDate::from_ymd_opt(2026, 2, 3).unwrap()));
         assert!(Weekly(vec![Mon, Tue]).matches(NaiveDate::from_ymd_opt(2026, 2, 3).unwrap()));
 
-        assert!(Monthly(vec![Monthday(1)]).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
-        assert!(!Monthly(vec![Monthday(1)]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
-        assert!(Monthly(vec![Monthday(1), Monthday(2)])
+        assert!(Monthly(vec![monthday(1)]).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
+        assert!(!Monthly(vec![monthday(1)]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(Monthly(vec![monthday(1), monthday(2)])
             .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
 
         assert!(!RelativeMonthly(vec![Mon], First)
@@ -342,9 +320,9 @@ mod tests {
             RelativeMonthly(vec![Sun], Last).matches(NaiveDate::from_ymd_opt(2026, 2, 22).unwrap())
         );
 
-        assert!(Yearly(vec![Yearday(32)]).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
-        assert!(!Yearly(vec![Yearday(32)]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
-        assert!(Yearly(vec![Yearday(32), Yearday(33)])
+        assert!(Yearly(vec![yearday(32)]).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
+        assert!(!Yearly(vec![yearday(32)]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(Yearly(vec![yearday(32), yearday(33)])
             .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
     }
 
@@ -500,7 +478,7 @@ mod tests {
             "#,
             )));
 
-            assert_eq!(Recurrence::Monthly(vec![Monthday(1)]), event.recurrence);
+            assert_eq!(Recurrence::Monthly(vec![monthday(1)]), event.recurrence);
         }
 
         #[test]
@@ -528,7 +506,7 @@ mod tests {
             "#,
             )));
 
-            assert_eq!(Recurrence::Yearly(vec![Yearday(1)]), event.recurrence);
+            assert_eq!(Recurrence::Yearly(vec![yearday(1)]), event.recurrence);
         }
 
         #[test]

@@ -4,6 +4,44 @@ use chrono::{Datelike, Days, IsoWeek, Months, NaiveDate, Weekday};
 #[display("{:04}", _0)]
 pub struct Year(i32);
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Monthday(u32);
+
+#[derive(Debug, derive_more::Display, derive_more::Error)]
+#[display("Invalid month day {_0}")]
+pub struct InvalidMonthday(#[error(ignore)] u32);
+
+impl TryFrom<u32> for Monthday {
+    type Error = InvalidMonthday;
+
+    fn try_from(index: u32) -> Result<Monthday, Self::Error> {
+        if index > 0 && index < 32 {
+            Ok(Self(index))
+        } else {
+            Err(InvalidMonthday(index))
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Yearday(u32);
+
+#[derive(Debug, derive_more::Display, derive_more::Error)]
+#[display("Invalid year day {_0}")]
+pub struct InvalidYearday(#[error(ignore)] u32);
+
+impl TryFrom<u32> for Yearday {
+    type Error = InvalidYearday;
+
+    fn try_from(index: u32) -> Result<Yearday, Self::Error> {
+        if index > 0 && index < 367 {
+            Ok(Self(index))
+        } else {
+            Err(InvalidYearday(index))
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Month {
     year: i32,
