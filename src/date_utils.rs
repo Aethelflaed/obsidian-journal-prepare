@@ -18,6 +18,20 @@ impl Month {
     pub fn year(&self) -> Year {
         self.year.into()
     }
+
+    pub fn num_days(&self) -> u32 {
+        match self.month {
+            2 => {
+                if NaiveDate::from_ymd_opt(self.year, self.month, 29).is_some() {
+                    29
+                } else {
+                    28
+                }
+            }
+            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+            _ => 30,
+        }
+    }
 }
 
 impl From<NaiveDate> for Month {
@@ -214,6 +228,23 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn month_num_days() {
+        assert_eq!(31, Month { year: 2025, month: 1 }.num_days());
+        assert_eq!(28, Month { year: 2025, month: 2 }.num_days());
+        assert_eq!(29, Month { year: 2024, month: 2 }.num_days());
+        assert_eq!(31, Month { year: 2025, month: 3 }.num_days());
+        assert_eq!(30, Month { year: 2025, month: 4 }.num_days());
+        assert_eq!(31, Month { year: 2025, month: 5 }.num_days());
+        assert_eq!(30, Month { year: 2025, month: 6 }.num_days());
+        assert_eq!(31, Month { year: 2025, month: 7 }.num_days());
+        assert_eq!(31, Month { year: 2025, month: 8 }.num_days());
+        assert_eq!(30, Month { year: 2025, month: 9 }.num_days());
+        assert_eq!(31, Month { year: 2025, month: 10 }.num_days());
+        assert_eq!(30, Month { year: 2025, month: 11 }.num_days());
+        assert_eq!(31, Month { year: 2025, month: 12 }.num_days());
+    }
 
     #[test]
     fn month_arithmetic() {
