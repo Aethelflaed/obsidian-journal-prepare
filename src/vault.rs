@@ -1,6 +1,6 @@
 use crate::events::Event;
 use crate::options::PageOptions;
-use crate::page::{Entry, Page};
+use crate::page::Page;
 use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
@@ -15,7 +15,6 @@ pub mod preparer;
 /// they name a vault)
 #[derive(Debug)]
 pub struct Vault {
-    path: PathBuf,
     config: Config,
     events: Vec<Event>,
 }
@@ -26,14 +25,10 @@ impl Vault {
             std::fs::create_dir_all(path.as_path())
                 .with_context(|| format!("creating dir {:?}", path))?;
         }
-        let mut vault = Vault {
-            config: config::Config::new(&path)?,
-            path,
-            events: Default::default(),
-        };
-        vault.configure()?;
+        let config = Config::new(path)?;
+        let events = config.read_events()?;
 
-        Ok(vault)
+        Ok(Vault { config, events })
     }
 
     pub fn prepare(
@@ -54,32 +49,7 @@ impl Vault {
     }
 
     pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    fn configure(&mut self) -> Result<()> {
-        self.configure_events()?;
-
-        Ok(())
-    }
-
-    fn configure_events(&mut self) -> Result<()> {
-        let event_page_path = self.path.join("events/recurring.md");
-        if !event_page_path.exists() {
-            return Ok(());
-        }
-        let event_page = Page::try_from(event_page_path.as_path())?;
-        for entry in event_page.entries() {
-            if let Entry::CodeBlock(block) = entry {
-                if block.kind.as_str() == "toml" {
-                    let event = block.try_into()?;
-                    log::debug!("Event: {:?}", event);
-                    self.events.push(event);
-                }
-            }
-        }
-
-        Ok(())
+        self.config.path()
     }
 
     pub fn events(&self) -> std::slice::Iter<'_, Event> {
@@ -101,7 +71,7 @@ impl Vault {
     }
 
     pub fn page_file_path<T: ToPageName>(&self, page: T) -> PathBuf {
-        self.path.join(format!("{}.md", self.page_path(page)))
+        self.path().join(format!("{}.md", self.page_path(page)))
     }
 
     pub fn update<F, T>(&self, page: T, f: F) -> Result<()>
@@ -166,7 +136,7 @@ mod tests {
         create_daily_notes_config(&temp_dir)?;
 
         let vault = Vault {
-            config: config::Config::new(temp_dir.path())?,
+            config: config::Config::new(temp_dir.path().to_path_buf())?,
             ..vault
         };
 
@@ -211,7 +181,7 @@ mod tests {
         create_daily_notes_config(&temp_dir)?;
 
         let vault = Vault {
-            config: config::Config::new(temp_dir.path())?,
+            config: config::Config::new(temp_dir.path().to_path_buf())?,
             ..vault
         };
 
@@ -240,7 +210,7 @@ mod tests {
 
         assert!(temp_dir.path().exists());
         assert!(temp_dir.path().is_dir());
-        assert_eq!(temp_dir.path(), vault.path);
+        assert_eq!(temp_dir.path(), vault.path());
 
         Ok(())
     }

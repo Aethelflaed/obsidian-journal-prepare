@@ -1,12 +1,21 @@
+use crate::events::Event;
 use crate::options::PageSettings;
 use crate::page::{Entry, Page};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+#[derive(Debug)]
+pub struct Config {
+    path: PathBuf,
+    journals_folder: Option<String>,
+    settings: PageSettings,
+    event_files: Vec<String>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
+pub struct SerdeConfig {
     #[serde(default)]
     journals_folder: Option<String>,
     #[serde(flatten)]
@@ -15,7 +24,7 @@ pub struct Config {
     event_files: Vec<String>,
 }
 
-impl Default for Config {
+impl Default for SerdeConfig {
     fn default() -> Self {
         Self {
             journals_folder: None,
@@ -27,21 +36,20 @@ impl Default for Config {
 
 #[derive(Debug, derive_more::From, derive_more::Display, derive_more::Error)]
 pub enum ConfigError {
-    Unexisting,
     ReadingFile(anyhow::Error),
     Toml(toml::de::Error),
 }
 
-impl TryFrom<&Path> for Config {
+impl TryFrom<PathBuf> for Config {
     type Error = ConfigError;
 
-    fn try_from(path: &Path) -> Result<Config, ConfigError> {
+    fn try_from(path: PathBuf) -> Result<Config, ConfigError> {
         if !path.exists() {
-            return Err(ConfigError::Unexisting);
+            return Ok((path, SerdeConfig::default()).into());
         }
 
-        let page = Page::try_from(path)?;
-        let mut configs = Vec::<Config>::new();
+        let page = Page::try_from(path.join("journal-preparation-config.md").as_path())?;
+        let mut configs = Vec::<SerdeConfig>::new();
 
         for entry in page.entries() {
             if let Entry::CodeBlock(block) = entry {
@@ -51,28 +59,96 @@ impl TryFrom<&Path> for Config {
             }
         }
 
-        Ok(configs
+        let merged_configs = configs
             .into_iter()
-            .fold(Config::default(), |config_a, config_b| {
+            .fold(SerdeConfig::default(), |config_a, config_b| {
                 config_a.merge(config_b)
-            }))
+            });
+
+        Ok((path, merged_configs).into())
+    }
+}
+
+impl From<(PathBuf, SerdeConfig)> for Config {
+    fn from(tuple: (PathBuf, SerdeConfig)) -> Self {
+        Config {
+            path: tuple.0,
+            journals_folder: tuple.1.journals_folder,
+            event_files: tuple.1.event_files,
+            settings: tuple.1.settings,
+        }
     }
 }
 
 impl Config {
-    pub fn new(path: &Path) -> Result<Self> {
-        let mut config = match Self::try_from(path.join("journal-preparation-config.md").as_path())
-        {
+    pub fn new(path: PathBuf) -> Result<Self> {
+        let mut config = match Config::try_from(path) {
             Ok(config) => config,
-            Err(ConfigError::Unexisting) => Self::default(),
             Err(e) => Err(e)?,
         };
 
-        config.read_daily_notes_config(path)?;
+        config.read_daily_notes_config()?;
 
         Ok(config)
     }
 
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn journals_folder(&self) -> Option<&str> {
+        self.journals_folder.as_deref()
+    }
+
+    pub fn settings(&self) -> &PageSettings {
+        &self.settings
+    }
+
+    fn read_daily_notes_config(&mut self) -> Result<()> {
+        let daily_notes_config = self.path.join(".obsidian").join("daily-notes.json");
+        if !daily_notes_config.exists() {
+            return Ok(());
+        }
+
+        let config = std::fs::read_to_string(&daily_notes_config)
+            .with_context(|| format!("reading \"{}\"", daily_notes_config.display()))?;
+        let config: Value = serde_json::from_str(&config)
+            .with_context(|| format!("parsing \"{}\"", daily_notes_config.display()))?;
+
+        if let Some(folder) = config["folder"].as_str() {
+            log::info!("Using journals folder {}", folder);
+            self.journals_folder = Some(folder.to_owned());
+        }
+
+        Ok(())
+    }
+
+    pub fn read_events(&self) -> Result<Vec<Event>> {
+        let mut events = vec![];
+        for event_file in self.event_files.iter() {
+            let event_page_path = self.path.join(event_file);
+            if !event_page_path.exists() {
+                log::info!("Event file not found: {event_file:?}");
+                continue;
+            }
+
+            let event_page = Page::try_from(event_page_path.as_path())?;
+            for entry in event_page.entries() {
+                if let Entry::CodeBlock(block) = entry {
+                    if block.kind.as_str() == "toml" {
+                        let event = block.try_into()?;
+                        log::debug!("Event: {:?}", event);
+                        events.push(event);
+                    }
+                }
+            }
+        }
+
+        Ok(events)
+    }
+}
+
+impl SerdeConfig {
     fn merge(mut self, other: Self) -> Self {
         let journals_folder = self.journals_folder.or(other.journals_folder);
         let settings = PageSettings {
@@ -94,33 +170,6 @@ impl Config {
             event_files: self.event_files,
         }
     }
-
-    pub fn journals_folder(&self) -> Option<&str> {
-        self.journals_folder.as_deref()
-    }
-
-    pub fn settings(&self) -> &PageSettings {
-        &self.settings
-    }
-
-    fn read_daily_notes_config(&mut self, path: &Path) -> Result<()> {
-        let daily_notes_config = path.join(".obsidian").join("daily-notes.json");
-        if !daily_notes_config.exists() {
-            return Ok(());
-        }
-
-        let config = std::fs::read_to_string(&daily_notes_config)
-            .with_context(|| format!("reading \"{}\"", daily_notes_config.display()))?;
-        let config: Value = serde_json::from_str(&config)
-            .with_context(|| format!("parsing \"{}\"", daily_notes_config.display()))?;
-
-        if let Some(folder) = config["folder"].as_str() {
-            log::info!("Using journals folder {}", folder);
-            self.journals_folder = Some(folder.to_owned());
-        }
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -131,8 +180,8 @@ mod tests {
 
     #[test]
     fn default() {
-        let config = Config::default();
-        assert!(config.journals_folder().is_none());
+        let config = Config::from((PathBuf::new(), SerdeConfig::default()));
+        assert!(config.journals_folder.is_none());
         assert!(config.settings.day.is_none());
         assert!(config.settings.week.is_none());
         assert!(config.settings.month.is_none());
@@ -142,7 +191,7 @@ mod tests {
     #[test]
     fn build_with_non_existing_path() -> Result<()> {
         let temp_dir = assert_fs::TempDir::new()?;
-        let config = Config::new(temp_dir.path())?;
+        let config = Config::new(temp_dir.path().to_path_buf())?;
 
         assert!(config.journals_folder().is_none());
         assert!(config.settings.day.is_none());
@@ -161,7 +210,7 @@ mod tests {
         let config = temp_dir.child("journal-preparation-config.md");
         config.write_str("")?;
 
-        let config = Config::new(temp_dir.path())?;
+        let config = Config::new(temp_dir.path().to_path_buf())?;
 
         assert!(config.journals_folder().is_none());
         assert!(config.settings.day.is_none());
@@ -187,7 +236,7 @@ mod tests {
             ```
         "#})?;
 
-        let config = Config::new(temp_dir.path())?;
+        let config = Config::new(temp_dir.path().to_path_buf())?;
 
         assert_eq!(Some("Foo"), config.journals_folder());
         assert_eq!(
@@ -226,7 +275,7 @@ mod tests {
             ```
         "#})?;
 
-        let config = Config::new(temp_dir.path())?;
+        let config = Config::new(temp_dir.path().to_path_buf())?;
         println!("{config:?}");
 
         assert_eq!(Some("Foo"), config.journals_folder());
@@ -259,7 +308,7 @@ mod tests {
             }
         "#})?;
 
-        let config = Config::new(temp_dir.path())?;
+        let config = Config::new(temp_dir.path().to_path_buf())?;
         assert_eq!(Some("daily-notes/"), config.journals_folder());
 
         Ok(())
