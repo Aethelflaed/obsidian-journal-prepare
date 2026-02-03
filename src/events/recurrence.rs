@@ -10,6 +10,7 @@ pub enum Frequency {
     Weekly,
     Monthly,
     Yearly,
+    Once,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, derive_more::IsVariant)]
@@ -33,6 +34,8 @@ pub enum Recurrence {
     RelativeMonthly(Vec<Weekday>, WeekIndex),
     /// Yearly each Nth day, starting from 1
     Yearly(Vec<Yearday>),
+    /// Once on specific dates
+    Once(Vec<NaiveDate>),
 }
 
 impl Recurrence {
@@ -43,6 +46,7 @@ impl Recurrence {
             Weekly(weekdays) => weekdays.contains(&date.weekday()),
             Monthly(monthdays) => monthdays.contains(&Monthday::try_from(date.day()).unwrap()),
             Yearly(yeardays) => yeardays.contains(&Yearday::try_from(date.ordinal()).unwrap()),
+            Once(dates) => dates.contains(&date),
 
             RelativeMonthly(weekdays, index) => {
                 if weekdays.contains(&date.weekday()) {
@@ -75,6 +79,8 @@ pub struct SerdeRecurrence {
     monthdays: Vec<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     yeardays: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    dates: Vec<NaiveDate>,
     index: Option<WeekIndex>,
 }
 
@@ -93,6 +99,9 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                 if !serde.yeardays.is_empty() {
                     anyhow::bail!("`yeardays` not allowed for daily recurrence");
                 }
+                if !serde.dates.is_empty() {
+                    anyhow::bail!("`dates` not allowed for daily recurrence");
+                }
                 Recurrence::Daily
             }
             Frequency::Weekly => {
@@ -102,6 +111,9 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                 if !serde.yeardays.is_empty() {
                     anyhow::bail!("`yeardays` not allowed for weekly recurrence");
                 }
+                if !serde.dates.is_empty() {
+                    anyhow::bail!("`dates` not allowed for weekly recurrence");
+                }
                 if serde.weekdays.is_empty() {
                     anyhow::bail!("`weekdays` must be specified");
                 }
@@ -110,6 +122,9 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
             Frequency::Monthly => {
                 if !serde.yeardays.is_empty() {
                     anyhow::bail!("`yeardays` not allowed for monthly recurrence");
+                }
+                if !serde.dates.is_empty() {
+                    anyhow::bail!("`dates` not allowed for monthly recurrence");
                 }
                 if serde.weekdays.is_empty() {
                     if serde.monthdays.is_empty() {
@@ -136,6 +151,9 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                 if !serde.monthdays.is_empty() {
                     anyhow::bail!("`monthdays` not allowed for yearly recurrence");
                 }
+                if !serde.dates.is_empty() {
+                    anyhow::bail!("`dates` not allowed for yearly recurrence");
+                }
                 if serde.yeardays.is_empty() {
                     anyhow::bail!("`yeardays` must be specified");
                 }
@@ -146,6 +164,21 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                         .map(Yearday::try_from)
                         .collect::<Result<Vec<_>, InvalidYearday>>()?,
                 )
+            }
+            Frequency::Once => {
+                if !serde.weekdays.is_empty() {
+                    anyhow::bail!("`weekdays` not allowed for once recurrence");
+                }
+                if !serde.monthdays.is_empty() {
+                    anyhow::bail!("`monthdays` not allowed for once recurrence");
+                }
+                if !serde.yeardays.is_empty() {
+                    anyhow::bail!("`yeardays` not allowed for once recurrence");
+                }
+                if serde.dates.is_empty() {
+                    anyhow::bail!("`dates` must be specified");
+                }
+                Recurrence::Once(serde.dates)
             }
         })
     }
@@ -171,6 +204,10 @@ mod tests {
 
     fn yearday(index: u32) -> Yearday {
         Yearday::try_from(index).unwrap()
+    }
+
+    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day).unwrap()
     }
 
     #[test]
@@ -214,6 +251,16 @@ mod tests {
         assert!(!Yearly(vec![yearday(32)]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
         assert!(Yearly(vec![yearday(32), yearday(33)])
             .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+
+        assert!(Once(vec![NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()])
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
+        assert!(!Once(vec![NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()])
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(Once(vec![
+            NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()
+        ])
+        .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
     }
 
     mod daily {
@@ -257,6 +304,17 @@ mod tests {
                 r#"
                 frequency = "daily"
                 yeardays = [1]
+                content = "Daily"
+            "#,
+            )));
+        }
+
+        #[test]
+        fn daily_dates() {
+            assert_err!(Event::try_from(&block(
+                r#"
+                frequency = "daily"
+                dates = ["2026-02-03"]
                 content = "Daily"
             "#,
             )));
@@ -306,6 +364,17 @@ mod tests {
                 r#"
                 frequency = "weekly"
                 yeardays = [1]
+                content = "Weekly"
+            "#,
+            )));
+        }
+
+        #[test]
+        fn weekly_dates() {
+            assert_err!(Event::try_from(&block(
+                r#"
+                frequency = "weekly"
+                dates = ["2026-02-03"]
                 content = "Weekly"
             "#,
             )));
@@ -381,6 +450,17 @@ mod tests {
             "#,
             )));
         }
+
+        #[test]
+        fn monthly_dates() {
+            assert_err!(Event::try_from(&block(
+                r#"
+                frequency = "monthly"
+                dates = ["2026-02-03"]
+                content = "Weekly"
+            "#,
+            )));
+        }
     }
 
     mod yearly {
@@ -427,6 +507,77 @@ mod tests {
                 frequency = "yearly"
                 monthdays = [1]
                 content = "Happy new year"
+            "#,
+            )));
+        }
+
+        #[test]
+        fn yearly_dates() {
+            assert_err!(Event::try_from(&block(
+                r#"
+                frequency = "yearly"
+                dates = ["2026-02-03"]
+                content = "Happy new year"
+            "#,
+            )));
+        }
+    }
+
+    mod once {
+        use super::*;
+
+        #[test]
+        fn once_dates() {
+            let event = assert_ok!(Event::try_from(&block(
+                r#"
+                frequency = "once"
+                dates = ["2026-02-03"]
+                content = "Special date"
+            "#,
+            )));
+
+            assert_eq!(Recurrence::Once(vec![date(2026, 2, 3)]), event.recurrence);
+        }
+
+        #[test]
+        fn once_empty_dates() {
+            assert_err!(Event::try_from(&block(
+                r#"
+                frequency = "once"
+                content = "Special date"
+            "#,
+            )));
+        }
+
+        #[test]
+        fn once_weekdays() {
+            assert_err!(Event::try_from(&block(
+                r#"
+                frequency = "once"
+                weekdays = ["Monday"]
+                content = "Special date"
+            "#,
+            )));
+        }
+
+        #[test]
+        fn once_monthdays() {
+            assert_err!(Event::try_from(&block(
+                r#"
+                frequency = "once"
+                monthdays = [1]
+                content = "Special date"
+            "#,
+            )));
+        }
+
+        #[test]
+        fn once_yeardays() {
+            assert_err!(Event::try_from(&block(
+                r#"
+                frequency = "once"
+                yeardays = [1]
+                content = "Special date"
             "#,
             )));
         }
