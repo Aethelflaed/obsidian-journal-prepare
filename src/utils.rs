@@ -14,7 +14,7 @@ pub trait ToLink {
 }
 impl<T: ToPageName> ToLink for T {
     fn to_link(self, vault: &Vault) -> Link {
-        let path = vault.page_path(self);
+        let path = vault.page_path(&self);
         let title = if let Some((_, title)) = path.rsplit_once('/') {
             title.to_owned()
         } else {

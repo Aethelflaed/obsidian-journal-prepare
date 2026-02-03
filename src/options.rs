@@ -95,6 +95,7 @@ pub struct Options {
     pub to: NaiveDate,
     pub path: PathBuf,
     pub log_level_filter: log::LevelFilter,
+    #[allow(clippy::struct_field_names)]
     pub page_options: PageOptions,
 }
 

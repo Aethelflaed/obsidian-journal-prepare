@@ -79,7 +79,7 @@ impl Preparer<'_> {
             return Ok(());
         }
 
-        self.vault.update(year, |mut page| {
+        self.vault.update(&year, |mut page| {
             if settings.nav_link {
                 page.insert_property("next", year.next().to_link(self.vault));
                 page.insert_property("prev", year.prev().to_link(self.vault));
@@ -98,7 +98,7 @@ impl Preparer<'_> {
             return Ok(());
         }
 
-        self.vault.update(month, |mut page| {
+        self.vault.update(&month, |mut page| {
             if settings.nav_link {
                 page.insert_property("next", month.next().to_link(self.vault));
                 page.insert_property("prev", month.prev().to_link(self.vault));
@@ -130,7 +130,7 @@ impl Preparer<'_> {
             return Ok(());
         }
 
-        self.vault.update(week, |mut page| {
+        self.vault.update(&week, |mut page| {
             if settings.link_to_month {
                 page.insert_property("month", Month::from(week).to_link(self.vault));
             }
@@ -158,7 +158,7 @@ impl Preparer<'_> {
             return Ok(());
         }
 
-        self.vault.update(date, |mut page| {
+        self.vault.update(&date, |mut page| {
             if settings.day_of_week {
                 page.insert_property("day", weekday(date));
             }

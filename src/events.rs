@@ -100,7 +100,7 @@ mod tests {
     fn try_from_not_a_toml_block() {
         assert_err!(Event::try_from(&CodeBlock {
             kind: "foo".to_owned(),
-            code: "".to_owned(),
+            code: String::new(),
         }));
     }
 

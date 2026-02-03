@@ -50,14 +50,16 @@ pub struct Month {
 
 impl Month {
     pub fn name(&self) -> &str {
+        // The cast is safe
+        #[allow(clippy::cast_possible_truncation)]
         chrono::Month::try_from(self.month as u8).unwrap().name()
     }
 
-    pub fn year(&self) -> Year {
+    pub fn year(self) -> Year {
         self.year.into()
     }
 
-    pub const fn num_days(&self) -> u32 {
+    pub const fn num_days(self) -> u32 {
         match self.month {
             2 => {
                 if NaiveDate::from_ymd_opt(self.year, self.month, 29).is_some() {
@@ -92,7 +94,7 @@ impl std::ops::Add<Months> for Month {
         let month = self.month - 1 + rhs.as_u32();
 
         Self {
-            year: self.year + month.div_euclid(12) as i32,
+            year: self.year + month.div_euclid(12).cast_signed(),
             month: month.rem_euclid(12) + 1,
         }
     }
@@ -101,7 +103,7 @@ impl std::ops::Sub<Months> for Month {
     type Output = Self;
 
     fn sub(self, rhs: Months) -> Self {
-        let month = self.month as i32 - 1 - rhs.as_u32() as i32;
+        let month = self.month.cast_signed() - 1 - rhs.as_u32().cast_signed();
 
         Self {
             year: self.year + month.div_euclid(12),
@@ -267,133 +269,33 @@ where
 mod tests {
     use super::*;
 
+    fn build_month(year: i32, month: u32) -> Month {
+        Month { year, month }
+    }
+
     #[test]
     fn month_num_days() {
-        assert_eq!(
-            31,
-            Month {
-                year: 2025,
-                month: 1
-            }
-            .num_days()
-        );
-        assert_eq!(
-            28,
-            Month {
-                year: 2025,
-                month: 2
-            }
-            .num_days()
-        );
-        assert_eq!(
-            29,
-            Month {
-                year: 2024,
-                month: 2
-            }
-            .num_days()
-        );
-        assert_eq!(
-            31,
-            Month {
-                year: 2025,
-                month: 3
-            }
-            .num_days()
-        );
-        assert_eq!(
-            30,
-            Month {
-                year: 2025,
-                month: 4
-            }
-            .num_days()
-        );
-        assert_eq!(
-            31,
-            Month {
-                year: 2025,
-                month: 5
-            }
-            .num_days()
-        );
-        assert_eq!(
-            30,
-            Month {
-                year: 2025,
-                month: 6
-            }
-            .num_days()
-        );
-        assert_eq!(
-            31,
-            Month {
-                year: 2025,
-                month: 7
-            }
-            .num_days()
-        );
-        assert_eq!(
-            31,
-            Month {
-                year: 2025,
-                month: 8
-            }
-            .num_days()
-        );
-        assert_eq!(
-            30,
-            Month {
-                year: 2025,
-                month: 9
-            }
-            .num_days()
-        );
-        assert_eq!(
-            31,
-            Month {
-                year: 2025,
-                month: 10
-            }
-            .num_days()
-        );
-        assert_eq!(
-            30,
-            Month {
-                year: 2025,
-                month: 11
-            }
-            .num_days()
-        );
-        assert_eq!(
-            31,
-            Month {
-                year: 2025,
-                month: 12
-            }
-            .num_days()
-        );
+        assert_eq!(31, build_month(2025, 1).num_days());
+        assert_eq!(28, build_month(2025, 2).num_days());
+        assert_eq!(29, build_month(2024, 2).num_days());
+        assert_eq!(31, build_month(2025, 3).num_days());
+        assert_eq!(30, build_month(2025, 4).num_days());
+        assert_eq!(31, build_month(2025, 5).num_days());
+        assert_eq!(30, build_month(2025, 6).num_days());
+        assert_eq!(31, build_month(2025, 7).num_days());
+        assert_eq!(31, build_month(2025, 8).num_days());
+        assert_eq!(30, build_month(2025, 9).num_days());
+        assert_eq!(31, build_month(2025, 10).num_days());
+        assert_eq!(30, build_month(2025, 11).num_days());
+        assert_eq!(31, build_month(2025, 12).num_days());
     }
 
     #[test]
     fn month_arithmetic() {
         let month = Month::from(NaiveDate::from_ymd_opt(2024, 12, 1).unwrap());
 
-        assert_eq!(
-            Month {
-                year: 2025,
-                month: 1
-            },
-            month + Months::new(1)
-        );
-
-        assert_eq!(
-            Month {
-                year: 2023,
-                month: 12
-            },
-            month - Months::new(12)
-        );
+        assert_eq!(build_month(2025, 1), month + Months::new(1));
+        assert_eq!(build_month(2023, 12), month - Months::new(12));
     }
 
     mod to_date_iterator {
@@ -422,27 +324,8 @@ mod tests {
         fn month() {
             let month = Month::from(NaiveDate::from_ymd_opt(2024, 12, 1).unwrap());
 
-            assert_eq!(
-                Month {
-                    year: 2024,
-                    month: 11
-                },
-                month.prev()
-            );
-            assert_eq!(
-                Month {
-                    year: 2025,
-                    month: 1
-                },
-                month.next()
-            );
-            assert_eq!(
-                Month {
-                    year: 2025,
-                    month: 1
-                },
-                month.next()
-            );
+            assert_eq!(build_month(2024, 11), month.prev());
+            assert_eq!(build_month(2025, 1), month.next());
         }
 
         #[test]

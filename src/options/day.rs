@@ -23,6 +23,8 @@ pub struct Page {
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
+// The flags are non-exclusive so we really need a bool
+#[allow(clippy::struct_excessive_bools)]
 pub struct Settings {
     #[serde(default)]
     pub day_of_week: bool,

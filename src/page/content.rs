@@ -345,7 +345,7 @@ mod tests {
     }
 
     #[test]
-    fn insert_property_on_default_content() -> Result<()> {
+    fn insert_property_on_default_content() {
         let mut content = Content::default();
         assert!(content.insert_property("foo".to_owned(), "bar".to_owned()));
 
@@ -355,8 +355,6 @@ mod tests {
             ---
         "};
         assert_eq!(string, format!("{content}").as_str());
-
-        Ok(())
     }
 
     #[test]
@@ -383,14 +381,12 @@ mod tests {
     }
 
     #[test]
-    fn prepend_unique_entry_on_default_content() -> Result<()> {
+    fn prepend_unique_entry_on_default_content() {
         let mut content = Content::default();
 
         let entry = Entry::Line("Hello, World".to_owned());
         assert!(content.prepend_unique_entry(entry.clone()));
-        assert!(!content.prepend_unique_entry(entry.clone()));
-
-        Ok(())
+        assert!(!content.prepend_unique_entry(entry));
     }
 
     #[test]
@@ -400,7 +396,7 @@ mod tests {
         "};
         let mut content = Content::from_str(string)?;
         let entry = Entry::Line("Hello, World".to_owned());
-        assert!(!content.prepend_unique_entry(entry.clone()));
+        assert!(!content.prepend_unique_entry(entry));
 
         Ok(())
     }

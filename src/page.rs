@@ -62,10 +62,7 @@ impl Page {
         K: Into<String>,
         V: Display,
     {
-        if self
-            .content
-            .insert_property(key.into(), format!("{value}"))
-        {
+        if self.content.insert_property(key.into(), format!("{value}")) {
             self.modified = true;
         }
     }
@@ -96,7 +93,7 @@ impl TryFrom<PathBuf> for Page {
                 .with_context(|| format!("reading file {}", path.display()))?
                 .parse()
                 .with_context(|| format!("reading file {}", path.display()))?;
-           Self {
+            Self {
                 path,
                 exists: true,
                 modified: false,

@@ -56,7 +56,7 @@ impl Vault {
         self.events.iter()
     }
 
-    pub fn page_path<T: ToPageName>(&self, object: T) -> String {
+    pub fn page_path<T: ToPageName>(&self, object: &T) -> String {
         let PageName { name, kind } = object.to_page_name();
         match kind {
             PageKind::Journal => {
@@ -70,11 +70,11 @@ impl Vault {
         }
     }
 
-    pub fn page_file_path<T: ToPageName>(&self, page: T) -> PathBuf {
+    pub fn page_file_path<T: ToPageName>(&self, page: &T) -> PathBuf {
         self.path().join(format!("{}.md", self.page_path(page)))
     }
 
-    pub fn update<F, T>(&self, page: T, f: F) -> Result<()>
+    pub fn update<F, T>(&self, page: &T, f: F) -> Result<()>
     where
         T: ToPageName,
         F: FnOnce(Page) -> Result<Page>,
@@ -120,14 +120,14 @@ mod tests {
 
         assert_eq!(
             temp_dir.child("page.md").path(),
-            vault.page_file_path(PageName {
+            vault.page_file_path(&PageName {
                 name: "page".to_owned(),
                 kind: PageKind::Default
             })
         );
         assert_eq!(
             temp_dir.child("page.md").path(),
-            vault.page_file_path(PageName {
+            vault.page_file_path(&PageName {
                 name: "page".to_owned(),
                 kind: PageKind::Journal
             })
@@ -142,14 +142,14 @@ mod tests {
 
         assert_eq!(
             temp_dir.child("page.md").path(),
-            vault.page_file_path(PageName {
+            vault.page_file_path(&PageName {
                 name: "page".to_owned(),
                 kind: PageKind::Default
             })
         );
         assert_eq!(
             temp_dir.child("daily-notes/page.md").path(),
-            vault.page_file_path(PageName {
+            vault.page_file_path(&PageName {
                 name: "page".to_owned(),
                 kind: PageKind::Journal
             })
@@ -165,14 +165,14 @@ mod tests {
 
         assert_eq!(
             "page",
-            vault.page_path(PageName {
+            vault.page_path(&PageName {
                 name: "page".to_owned(),
                 kind: PageKind::Default
             })
         );
         assert_eq!(
             "page",
-            vault.page_path(PageName {
+            vault.page_path(&PageName {
                 name: "page".to_owned(),
                 kind: PageKind::Journal
             })
@@ -187,14 +187,14 @@ mod tests {
 
         assert_eq!(
             "page",
-            vault.page_path(PageName {
+            vault.page_path(&PageName {
                 name: "page".to_owned(),
                 kind: PageKind::Default
             })
         );
         assert_eq!(
             "daily-notes/page",
-            vault.page_path(PageName {
+            vault.page_path(&PageName {
                 name: "page".to_owned(),
                 kind: PageKind::Journal
             })
@@ -221,21 +221,21 @@ mod tests {
         let vault = Vault::new(temp_dir.path().to_path_buf())?;
         let name: PageName = "foo".to_string().into();
 
-        vault.update(name.clone(), |mut page| {
+        vault.update(&name, |mut page| {
             page.prepend_line("World");
             Ok(page)
         })?;
 
-        let path = vault.page_file_path(name.clone());
+        let path = vault.page_file_path(&name);
         let content = std::fs::read_to_string(&path)?;
         assert_eq!(content, "World\n");
 
-        vault.update(name.clone(), |mut page| {
+        vault.update(&name, |mut page| {
             page.prepend_line("Hello");
             Ok(page)
         })?;
 
-        let path = vault.page_file_path(name.clone());
+        let path = vault.page_file_path(&name);
         let content = std::fs::read_to_string(&path)?;
         assert_eq!(content, "Hello\nWorld\n");
 
