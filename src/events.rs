@@ -20,7 +20,7 @@ impl TryFrom<SerdeEvent> for Event {
     type Error = Error;
 
     fn try_from(event: SerdeEvent) -> Result<Self> {
-        Ok(Event {
+        Ok(Self {
             recurrence: Recurrence::try_from(event.recurrence)?,
             content: event.content,
             validity: event.validity,
@@ -75,7 +75,7 @@ impl Event {
 impl TryFrom<&CodeBlock> for Event {
     type Error = Error;
 
-    fn try_from(block: &CodeBlock) -> Result<Event> {
+    fn try_from(block: &CodeBlock) -> Result<Self> {
         if block.kind != "toml" {
             anyhow::bail!("Not a toml block");
         }

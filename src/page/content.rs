@@ -14,12 +14,12 @@ impl Default for Content {
     fn default() -> Self {
         Self {
             properties: YamlOwned::Mapping(saphyr::MappingOwned::default()),
-            entries: Default::default(),
+            entries: VecDeque::default(),
         }
     }
 }
 
-fn to_yaml_str(string: String) -> YamlOwned {
+const fn to_yaml_str(string: String) -> YamlOwned {
     YamlOwned::Value(ScalarOwned::String(string))
 }
 
@@ -33,8 +33,7 @@ impl Content {
         };
         mapping
             .insert(to_yaml_str(key), to_yaml_str(value.clone()))
-            .map(|previous_value| previous_value != to_yaml_str(value))
-            .unwrap_or(true)
+            .is_none_or(|previous_value| previous_value != to_yaml_str(value))
     }
 
     /// Prepend the given entry if it is not already present
@@ -50,7 +49,7 @@ impl Content {
     }
 }
 
-#[derive(Debug, Clone, derive_more::From, derive_more::Display, PartialEq)]
+#[derive(Debug, Clone, derive_more::From, derive_more::Display, Eq, PartialEq)]
 #[display("{_variant}")]
 pub enum Entry {
     Line(String),
@@ -58,15 +57,15 @@ pub enum Entry {
 }
 
 impl Entry {
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         match &self {
-            Entry::Line(s) => s.is_empty(),
-            Entry::CodeBlock(block) => block.is_empty(),
+            Self::Line(s) => s.is_empty(),
+            Self::CodeBlock(block) => block.is_empty(),
         }
     }
 }
 
-#[derive(Debug, Clone, derive_more::Display, PartialEq)]
+#[derive(Debug, Clone, derive_more::Display, Eq, PartialEq)]
 #[display("```{kind}\n{code}```")]
 pub struct CodeBlock {
     pub kind: String,
@@ -74,7 +73,7 @@ pub struct CodeBlock {
 }
 
 impl CodeBlock {
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.code.is_empty()
     }
 }
@@ -96,11 +95,10 @@ impl Display for Content {
             if !entries_started {
                 if line.is_empty() {
                     continue;
-                } else {
-                    entries_started = true;
                 }
+                entries_started = true;
             }
-            writeln!(f, "{}", line)?;
+            writeln!(f, "{line}")?;
         }
         Ok(())
     }
@@ -110,7 +108,9 @@ impl FromStr for Content {
     type Err = anyhow::Error;
 
     fn from_str(string: &str) -> Result<Self> {
-        let mut content = Content::default();
+        use saphyr::LoadableYamlNode;
+
+        let mut content = Self::default();
         let mut lines = string.lines().peekable();
 
         // If it starts with a document separator, it means there is properties to read
@@ -119,12 +119,10 @@ impl FromStr for Content {
             for line in lines.by_ref() {
                 if line == "---" {
                     break;
-                } else {
-                    properties = properties + line + "\n";
                 }
+                properties = properties + line + "\n";
             }
 
-            use saphyr::LoadableYamlNode;
             let mut yaml_documents = YamlOwned::load_from_str(properties.as_str())?;
             if yaml_documents.len() > 1 {
                 // This shouldn't be possible as we read the content until the second document
@@ -145,24 +143,24 @@ impl FromStr for Content {
         }
 
         while let Some(line) = lines.next() {
-            let entry = if let Some(kind) = line.strip_prefix("```") {
-                let mut code = String::new();
-                for line in lines.by_ref() {
-                    if line == "```" {
-                        break;
-                    } else {
+            let entry = line.strip_prefix("```").map_or_else(
+                || line.to_owned().into(),
+                |kind| {
+                    let mut code = String::new();
+                    for line in lines.by_ref() {
+                        if line == "```" {
+                            break;
+                        }
                         code = code + line + "\n";
                     }
-                }
 
-                CodeBlock {
-                    kind: kind.to_owned(),
-                    code,
-                }
-                .into()
-            } else {
-                line.to_owned().into()
-            };
+                    CodeBlock {
+                        kind: kind.to_owned(),
+                        code,
+                    }
+                    .into()
+                },
+            );
 
             content.entries.push_back(entry);
         }

@@ -43,7 +43,7 @@ pub enum ConfigError {
 impl TryFrom<PathBuf> for Config {
     type Error = ConfigError;
 
-    fn try_from(path: PathBuf) -> Result<Config, ConfigError> {
+    fn try_from(path: PathBuf) -> Result<Self, ConfigError> {
         if !path.exists() {
             return Ok((path, SerdeConfig::default()).into());
         }
@@ -71,7 +71,7 @@ impl TryFrom<PathBuf> for Config {
 
 impl From<(PathBuf, SerdeConfig)> for Config {
     fn from(tuple: (PathBuf, SerdeConfig)) -> Self {
-        Config {
+        Self {
             path: tuple.0,
             journals_folder: tuple.1.journals_folder,
             event_files: tuple.1.event_files,
@@ -82,7 +82,7 @@ impl From<(PathBuf, SerdeConfig)> for Config {
 
 impl Config {
     pub fn new(path: PathBuf) -> Result<Self> {
-        let mut config = match Config::try_from(path) {
+        let mut config = match Self::try_from(path) {
             Ok(config) => config,
             Err(e) => Err(e)?,
         };
@@ -100,7 +100,7 @@ impl Config {
         self.journals_folder.as_deref()
     }
 
-    pub fn settings(&self) -> &PageSettings {
+    pub const fn settings(&self) -> &PageSettings {
         &self.settings
     }
 
@@ -125,7 +125,7 @@ impl Config {
 
     pub fn read_events(&self) -> Result<Vec<Event>> {
         let mut events = vec![];
-        for event_file in self.event_files.iter() {
+        for event_file in &self.event_files {
             let event_page_path = self.path.join(event_file);
             if !event_page_path.exists() {
                 log::info!("Event file not found: {event_file:?}");

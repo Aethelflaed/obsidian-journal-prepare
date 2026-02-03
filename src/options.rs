@@ -147,8 +147,8 @@ impl PageOptions {
 }
 
 impl From<&clap::ArgMatches> for PageOptions {
-    fn from(matches: &clap::ArgMatches) -> PageOptions {
-        PageOptions {
+    fn from(matches: &clap::ArgMatches) -> Self {
+        Self {
             day: day::Page::from(matches),
             week: week::Page::from(matches),
             month: month::Page::from(matches),
@@ -163,13 +163,14 @@ where
     T: Into<OsString> + Clone,
 {
     use clap::{arg, command, value_parser};
+    use clap_verbosity_flag::{ErrorLevel, Verbosity};
 
     let from_help = "Only prepare journal start from given date";
     let from_default = chrono::Utc::now().date_naive();
-    let from_long_help = format!("{}\n\n[default: {}]", from_help, from_default);
+    let from_long_help = format!("{from_help}\n\n[default: {from_default}]");
 
     let to_help = "Only prepare journal start from given date";
-    let to_long_help = format!("{}\n\n[default: 1 month after --from]", to_help);
+    let to_long_help = format!("{to_help}\n\n[default: 1 month after --from]");
 
     let mut command = command!()
         .arg(arg!(verbose: -v --verbose ... "Increase logging verbosity"))
@@ -206,17 +207,17 @@ where
 
     let from = matches
         .get_one::<NaiveDate>("from")
-        .cloned()
+        .copied()
         .unwrap_or(from_default);
     let to = matches
         .get_one::<NaiveDate>("to")
-        .cloned()
+        .copied()
         .unwrap_or(from + chrono::Months::new(1));
 
     if to < from {
         return Err(command.error(
             clap::error::ErrorKind::ArgumentConflict,
-            format!("--from {} should be less than --to {}", from, to),
+            format!("--from {from} should be less than --to {to}"),
         ));
     }
 
@@ -227,10 +228,9 @@ where
         .expect("'PATH' is required and parsing will fail if its missing")
         .clone();
 
-    use clap_verbosity_flag::{ErrorLevel, Verbosity};
     let log_level_filter = Verbosity::<ErrorLevel>::new(
-        matches.get_one::<u8>("verbose").cloned().unwrap_or(0u8),
-        matches.get_one::<u8>("quiet").cloned().unwrap_or(0u8),
+        matches.get_one::<u8>("verbose").copied().unwrap_or(0u8),
+        matches.get_one::<u8>("quiet").copied().unwrap_or(0u8),
     )
     .log_level_filter();
 

@@ -1,10 +1,10 @@
 use chrono::{Datelike, Days, IsoWeek, Months, NaiveDate, Weekday};
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, derive_more::From, derive_more::Display)]
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, derive_more::From, derive_more::Display)]
 #[display("{:04}", _0)]
 pub struct Year(i32);
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Monthday(u32);
 
 #[derive(Debug, derive_more::Display, derive_more::Error)]
@@ -14,7 +14,7 @@ pub struct InvalidMonthday(#[error(ignore)] u32);
 impl TryFrom<u32> for Monthday {
     type Error = InvalidMonthday;
 
-    fn try_from(index: u32) -> Result<Monthday, Self::Error> {
+    fn try_from(index: u32) -> Result<Self, Self::Error> {
         if index > 0 && index < 32 {
             Ok(Self(index))
         } else {
@@ -23,7 +23,7 @@ impl TryFrom<u32> for Monthday {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Yearday(u32);
 
 #[derive(Debug, derive_more::Display, derive_more::Error)]
@@ -33,7 +33,7 @@ pub struct InvalidYearday(#[error(ignore)] u32);
 impl TryFrom<u32> for Yearday {
     type Error = InvalidYearday;
 
-    fn try_from(index: u32) -> Result<Yearday, Self::Error> {
+    fn try_from(index: u32) -> Result<Self, Self::Error> {
         if index > 0 && index < 367 {
             Ok(Self(index))
         } else {
@@ -42,7 +42,7 @@ impl TryFrom<u32> for Yearday {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, PartialOrd)]
 pub struct Month {
     year: i32,
     month: u32,
@@ -57,7 +57,7 @@ impl Month {
         self.year.into()
     }
 
-    pub fn num_days(&self) -> u32 {
+    pub const fn num_days(&self) -> u32 {
         match self.month {
             2 => {
                 if NaiveDate::from_ymd_opt(self.year, self.month, 29).is_some() {
@@ -74,7 +74,7 @@ impl Month {
 
 impl From<NaiveDate> for Month {
     fn from(date: NaiveDate) -> Self {
-        Month {
+        Self {
             year: date.year(),
             month: date.month(),
         }
@@ -91,7 +91,7 @@ impl std::ops::Add<Months> for Month {
     fn add(self, rhs: Months) -> Self {
         let month = self.month - 1 + rhs.as_u32();
 
-        Month {
+        Self {
             year: self.year + month.div_euclid(12) as i32,
             month: month.rem_euclid(12) + 1,
         }
@@ -103,7 +103,7 @@ impl std::ops::Sub<Months> for Month {
     fn sub(self, rhs: Months) -> Self {
         let month = self.month as i32 - 1 - rhs.as_u32() as i32;
 
-        Month {
+        Self {
             year: self.year + month.div_euclid(12),
             month: month.rem_euclid(12) as u32 + 1,
         }
@@ -189,10 +189,10 @@ impl Navigation for Month {
 
 impl Navigation for Year {
     fn next(&self) -> Self {
-        Year(self.0 + 1)
+        Self(self.0 + 1)
     }
     fn prev(&self) -> Self {
-        Year(self.0 - 1)
+        Self(self.0 - 1)
     }
 }
 

@@ -54,7 +54,7 @@ pub struct PageName {
 
 impl From<String> for PageName {
     fn from(name: String) -> Self {
-        PageName {
+        Self {
             name,
             kind: PageKind::default(),
         }

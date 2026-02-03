@@ -23,12 +23,12 @@ impl Vault {
     pub fn new(path: PathBuf) -> Result<Self> {
         if !path.exists() {
             std::fs::create_dir_all(path.as_path())
-                .with_context(|| format!("creating dir {:?}", path))?;
+                .with_context(|| format!("creating dir {}", path.display()))?;
         }
         let config = Config::new(path)?;
         let events = config.read_events()?;
 
-        Ok(Vault { config, events })
+        Ok(Self { config, events })
     }
 
     pub fn prepare(

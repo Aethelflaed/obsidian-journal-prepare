@@ -19,14 +19,14 @@ impl Page {
         if let Some(parent) = self.path.parent() {
             if !parent.exists() {
                 std::fs::create_dir_all(parent)
-                    .with_context(|| format!("creating dir {:?}", parent))?;
+                    .with_context(|| format!("creating dir {}", parent.display()))?;
             }
         }
 
         let mut file = std::fs::File::create(&self.path)
-            .with_context(|| format!("creating file {:?}", self.path))?;
+            .with_context(|| format!("creating file {}", self.path.display()))?;
         write!(file, "{}", self.content)
-            .with_context(|| format!("writing file {:?}", self.path))?;
+            .with_context(|| format!("writing file {}", self.path.display()))?;
 
         self.exists = true;
         self.modified = false;
@@ -50,7 +50,7 @@ impl Page {
     }
 
     pub fn prepend_line<L: Display>(&mut self, line: L) {
-        let entry = Entry::Line(format!("{}", line));
+        let entry = Entry::Line(format!("{line}"));
 
         if self.content.prepend_unique_entry(entry) {
             self.modified = true;
@@ -64,17 +64,17 @@ impl Page {
     {
         if self
             .content
-            .insert_property(key.into(), format!("{}", value))
+            .insert_property(key.into(), format!("{value}"))
         {
             self.modified = true;
         }
     }
 
-    pub fn modified(&self) -> bool {
+    pub const fn modified(&self) -> bool {
         self.modified
     }
 
-    pub fn exists(&self) -> bool {
+    pub const fn exists(&self) -> bool {
         self.exists
     }
 }
@@ -82,28 +82,28 @@ impl Page {
 impl TryFrom<&Path> for Page {
     type Error = anyhow::Error;
 
-    fn try_from(path: &Path) -> Result<Page> {
-        Page::try_from(path.to_path_buf())
+    fn try_from(path: &Path) -> Result<Self> {
+        Self::try_from(path.to_path_buf())
     }
 }
 
 impl TryFrom<PathBuf> for Page {
     type Error = anyhow::Error;
 
-    fn try_from(path: PathBuf) -> Result<Page> {
+    fn try_from(path: PathBuf) -> Result<Self> {
         let page = if path.exists() {
             let content = std::fs::read_to_string(&path)
-                .with_context(|| format!("reading file {:?}", path))?
+                .with_context(|| format!("reading file {}", path.display()))?
                 .parse()
-                .with_context(|| format!("reading file {:?}", path))?;
-            Page {
+                .with_context(|| format!("reading file {}", path.display()))?;
+           Self {
                 path,
                 exists: true,
                 modified: false,
                 content,
             }
         } else {
-            Page {
+            Self {
                 path,
                 exists: false,
                 modified: false,

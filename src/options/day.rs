@@ -16,13 +16,13 @@ pub enum Option {
     Events,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Page {
     default: bool,
     settings: Settings,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
     #[serde(default)]
     pub day_of_week: bool,
@@ -65,7 +65,7 @@ impl<'a> FromIterator<&'a Option> for Settings {
     where
         T: IntoIterator<Item = &'a Option>,
     {
-        let mut settings = Settings::default();
+        let mut settings = Self::default();
         for option in options {
             match option {
                 Option::Day => settings.day_of_week = true,
@@ -80,15 +80,15 @@ impl<'a> FromIterator<&'a Option> for Settings {
 }
 
 impl From<&clap::ArgMatches> for Page {
-    fn from(matches: &clap::ArgMatches) -> Page {
+    fn from(matches: &clap::ArgMatches) -> Self {
         if matches.get_flag(Self::disabling_flag()) {
-            Page::disabled()
+            Self::disabled()
         } else {
             matches
                 .get_many::<Option>(Self::flag())
-                .map(|options| Page {
+                .map(|options| Self {
                     default: false,
-                    settings: Settings::from_iter(options),
+                    settings: options.collect(),
                 })
                 .unwrap_or_default()
         }
@@ -97,7 +97,7 @@ impl From<&clap::ArgMatches> for Page {
 
 impl Default for Page {
     fn default() -> Self {
-        Page {
+        Self {
             default: true,
             settings: Settings {
                 day_of_week: true,
@@ -114,7 +114,7 @@ impl GenericPage for Page {
     type Settings = Settings;
 
     fn disabled() -> Self {
-        Page {
+        Self {
             default: false,
             settings: Settings::default(),
         }

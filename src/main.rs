@@ -49,8 +49,8 @@ fn setup_log(level: log::LevelFilter) -> Result<()> {
             .replace('-', "_")
             .to_uppercase();
         let env = Env::new()
-            .filter(format!("{}_LOG", name))
-            .write_style(format!("{}_LOG_STYLE", name));
+            .filter(format!("{name}_LOG"))
+            .write_style(format!("{name}_LOG_STYLE"));
 
         Builder::new()
             .filter_level(log::LevelFilter::Trace)

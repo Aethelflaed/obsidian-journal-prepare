@@ -13,7 +13,7 @@ pub enum Frequency {
     Once,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, derive_more::IsVariant)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, derive_more::IsVariant)]
 #[serde(rename_all = "snake_case")]
 pub enum WeekIndex {
     First,
@@ -23,7 +23,7 @@ pub enum WeekIndex {
     Last,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Recurrence {
     Daily,
     /// Weekly every Weekday
@@ -40,15 +40,18 @@ pub enum Recurrence {
 
 impl Recurrence {
     pub fn matches(&self, date: NaiveDate) -> bool {
-        use Recurrence::*;
         match self {
-            Daily => true,
-            Weekly(weekdays) => weekdays.contains(&date.weekday()),
-            Monthly(monthdays) => monthdays.contains(&Monthday::try_from(date.day()).unwrap()),
-            Yearly(yeardays) => yeardays.contains(&Yearday::try_from(date.ordinal()).unwrap()),
-            Once(dates) => dates.contains(&date),
+            Self::Daily => true,
+            Self::Weekly(weekdays) => weekdays.contains(&date.weekday()),
+            Self::Monthly(monthdays) => {
+                monthdays.contains(&Monthday::try_from(date.day()).unwrap())
+            }
+            Self::Yearly(yeardays) => {
+                yeardays.contains(&Yearday::try_from(date.ordinal()).unwrap())
+            }
+            Self::Once(dates) => dates.contains(&date),
 
-            RelativeMonthly(weekdays, index) => {
+            Self::RelativeMonthly(weekdays, index) => {
                 if weekdays.contains(&date.weekday()) {
                     let monthday0 = date.day0();
                     let week_index = monthday0 / 7;
@@ -102,7 +105,7 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                 if !serde.dates.is_empty() {
                     anyhow::bail!("`dates` not allowed for daily recurrence");
                 }
-                Recurrence::Daily
+                Self::Daily
             }
             Frequency::Weekly => {
                 if !serde.monthdays.is_empty() {
@@ -117,7 +120,7 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                 if serde.weekdays.is_empty() {
                     anyhow::bail!("`weekdays` must be specified");
                 }
-                Recurrence::Weekly(serde.weekdays)
+                Self::Weekly(serde.weekdays)
             }
             Frequency::Monthly => {
                 if !serde.yeardays.is_empty() {
@@ -130,7 +133,7 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                     if serde.monthdays.is_empty() {
                         anyhow::bail!("Either `monthdays` or `weekdays` must be specified");
                     }
-                    Recurrence::Monthly(
+                    Self::Monthly(
                         serde
                             .monthdays
                             .into_iter()
@@ -138,10 +141,7 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                             .collect::<Result<Vec<_>, InvalidMonthday>>()?,
                     )
                 } else {
-                    Recurrence::RelativeMonthly(
-                        serde.weekdays,
-                        serde.index.unwrap_or(WeekIndex::First),
-                    )
+                    Self::RelativeMonthly(serde.weekdays, serde.index.unwrap_or(WeekIndex::First))
                 }
             }
             Frequency::Yearly => {
@@ -157,7 +157,7 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                 if serde.yeardays.is_empty() {
                     anyhow::bail!("`yeardays` must be specified");
                 }
-                Recurrence::Yearly(
+                Self::Yearly(
                     serde
                         .yeardays
                         .into_iter()
@@ -178,7 +178,7 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                 if serde.dates.is_empty() {
                     anyhow::bail!("`dates` must be specified");
                 }
-                Recurrence::Once(serde.dates)
+                Self::Once(serde.dates)
             }
         })
     }
