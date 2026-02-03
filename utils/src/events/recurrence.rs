@@ -1,5 +1,4 @@
 use crate::date::{InvalidMonthday, InvalidYearday, Month, Monthday, Yearday};
-use anyhow::{Error, Result};
 use chrono::{Datelike, NaiveDate, Weekday};
 use serde::{Deserialize, Serialize};
 
@@ -89,51 +88,75 @@ pub struct SerdeRecurrence {
     index: Option<WeekIndex>,
 }
 
-impl TryFrom<SerdeRecurrence> for Recurrence {
-    type Error = Error;
+#[derive(Debug, derive_more::From, derive_more::Display, derive_more::Error)]
+pub enum InvalidRecurrence {
+    #[display("`weekdays` not allowed")]
+    WeekdaysNotAllowed,
+    #[display("`weekdays` must be specified")]
+    WeekdaysRequired,
+    #[display("`monthdays` not allowed")]
+    MonthdaysNotAllowed,
+    #[display("`weekdays` or `monthdays` must be specified")]
+    WeekdaysOrMonthdaysRequired,
+    #[display("`yeardays` not allowed")]
+    YeardaysNotAllowed,
+    #[display("`yeardays` must be specified")]
+    YeardaysRequired,
+    #[display("`dates` not allowed")]
+    DatesNotAllowed,
+    #[display("`dates` must be specified")]
+    DatesRequired,
+    #[display("{_0}")]
+    InvalidMonthday(InvalidMonthday),
+    #[display("{_0}")]
+    InvalidYearday(InvalidYearday),
+}
 
-    fn try_from(serde: SerdeRecurrence) -> Result<Self> {
+impl TryFrom<SerdeRecurrence> for Recurrence {
+    type Error = InvalidRecurrence;
+
+    fn try_from(serde: SerdeRecurrence) -> Result<Self, Self::Error> {
         Ok(match serde.frequency {
             Frequency::Daily => {
                 if !serde.weekdays.is_empty() {
-                    anyhow::bail!("`weekdays` not allowed for daily recurrence");
+                    return Err(InvalidRecurrence::WeekdaysNotAllowed);
                 }
                 if !serde.monthdays.is_empty() {
-                    anyhow::bail!("`monthdays` not allowed for daily recurrence");
+                    return Err(InvalidRecurrence::MonthdaysNotAllowed);
                 }
                 if !serde.yeardays.is_empty() {
-                    anyhow::bail!("`yeardays` not allowed for daily recurrence");
+                    return Err(InvalidRecurrence::YeardaysNotAllowed);
                 }
                 if !serde.dates.is_empty() {
-                    anyhow::bail!("`dates` not allowed for daily recurrence");
+                    return Err(InvalidRecurrence::DatesNotAllowed);
                 }
                 Self::Daily
             }
             Frequency::Weekly => {
                 if !serde.monthdays.is_empty() {
-                    anyhow::bail!("`monthdays` not allowed for weekly recurrence");
+                    return Err(InvalidRecurrence::MonthdaysNotAllowed);
                 }
                 if !serde.yeardays.is_empty() {
-                    anyhow::bail!("`yeardays` not allowed for weekly recurrence");
+                    return Err(InvalidRecurrence::YeardaysNotAllowed);
                 }
                 if !serde.dates.is_empty() {
-                    anyhow::bail!("`dates` not allowed for weekly recurrence");
+                    return Err(InvalidRecurrence::DatesNotAllowed);
                 }
                 if serde.weekdays.is_empty() {
-                    anyhow::bail!("`weekdays` must be specified");
+                    return Err(InvalidRecurrence::WeekdaysRequired);
                 }
                 Self::Weekly(serde.weekdays)
             }
             Frequency::Monthly => {
                 if !serde.yeardays.is_empty() {
-                    anyhow::bail!("`yeardays` not allowed for monthly recurrence");
+                    return Err(InvalidRecurrence::YeardaysNotAllowed);
                 }
                 if !serde.dates.is_empty() {
-                    anyhow::bail!("`dates` not allowed for monthly recurrence");
+                    return Err(InvalidRecurrence::DatesNotAllowed);
                 }
                 if serde.weekdays.is_empty() {
                     if serde.monthdays.is_empty() {
-                        anyhow::bail!("Either `monthdays` or `weekdays` must be specified");
+                        return Err(InvalidRecurrence::WeekdaysOrMonthdaysRequired);
                     }
                     Self::Monthly(
                         serde
@@ -148,16 +171,16 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
             }
             Frequency::Yearly => {
                 if !serde.weekdays.is_empty() {
-                    anyhow::bail!("`weekdays` not allowed for yearly recurrence");
+                    return Err(InvalidRecurrence::WeekdaysNotAllowed);
                 }
                 if !serde.monthdays.is_empty() {
-                    anyhow::bail!("`monthdays` not allowed for yearly recurrence");
+                    return Err(InvalidRecurrence::MonthdaysNotAllowed);
                 }
                 if !serde.dates.is_empty() {
-                    anyhow::bail!("`dates` not allowed for yearly recurrence");
+                    return Err(InvalidRecurrence::DatesNotAllowed);
                 }
                 if serde.yeardays.is_empty() {
-                    anyhow::bail!("`yeardays` must be specified");
+                    return Err(InvalidRecurrence::YeardaysRequired);
                 }
                 Self::Yearly(
                     serde
@@ -169,16 +192,16 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
             }
             Frequency::Once => {
                 if !serde.weekdays.is_empty() {
-                    anyhow::bail!("`weekdays` not allowed for once recurrence");
+                    return Err(InvalidRecurrence::WeekdaysNotAllowed);
                 }
                 if !serde.monthdays.is_empty() {
-                    anyhow::bail!("`monthdays` not allowed for once recurrence");
+                    return Err(InvalidRecurrence::MonthdaysNotAllowed);
                 }
                 if !serde.yeardays.is_empty() {
-                    anyhow::bail!("`yeardays` not allowed for once recurrence");
+                    return Err(InvalidRecurrence::YeardaysNotAllowed);
                 }
                 if serde.dates.is_empty() {
-                    anyhow::bail!("`dates` must be specified");
+                    return Err(InvalidRecurrence::DatesRequired);
                 }
                 Self::Once(serde.dates)
             }

@@ -1,11 +1,10 @@
 use crate::content::CodeBlock;
-use anyhow::{Error, Result};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 pub mod recurrence;
-pub use recurrence::Recurrence;
 use recurrence::SerdeRecurrence;
+pub use recurrence::{InvalidRecurrence, Recurrence};
 
 /// Describe a recurring event
 #[derive(Debug, Clone)]
@@ -17,9 +16,9 @@ pub struct Event {
 }
 
 impl TryFrom<SerdeEvent> for Event {
-    type Error = Error;
+    type Error = InvalidRecurrence;
 
-    fn try_from(event: SerdeEvent) -> Result<Self> {
+    fn try_from(event: SerdeEvent) -> Result<Self, Self::Error> {
         Ok(Self {
             recurrence: Recurrence::try_from(event.recurrence)?,
             content: event.content,
@@ -74,15 +73,25 @@ impl Event {
     }
 }
 
-impl TryFrom<&CodeBlock> for Event {
-    type Error = Error;
+#[derive(Debug, derive_more::From, derive_more::Display, derive_more::Error)]
+pub enum InvalidEvent {
+    #[display("Not a toml block")]
+    NotAtTomlBlock,
+    #[display("Deserialization error: {_0}")]
+    TomlError(toml::de::Error),
+    #[display("Invalid recurrence: {_0}")]
+    InvalidRecurrence(InvalidRecurrence),
+}
 
-    fn try_from(block: &CodeBlock) -> Result<Self> {
+impl TryFrom<&CodeBlock> for Event {
+    type Error = InvalidEvent;
+
+    fn try_from(block: &CodeBlock) -> Result<Self, Self::Error> {
         if !block.is_toml() {
-            anyhow::bail!("Not a toml block");
+            return Err(InvalidEvent::NotAtTomlBlock);
         }
         let event: SerdeEvent = toml::from_str(block.code())?;
-        event.try_into()
+        Ok(event.try_into()?)
     }
 }
 
