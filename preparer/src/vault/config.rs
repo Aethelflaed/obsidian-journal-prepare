@@ -53,8 +53,8 @@ impl TryFrom<PathBuf> for Config {
 
         for entry in page.entries() {
             if let Entry::CodeBlock(block) = entry {
-                if block.kind == "toml" {
-                    configs.push(toml::from_str(&block.code)?);
+                if block.is_toml() {
+                    configs.push(toml::from_str(block.code())?);
                 }
             }
         }
@@ -135,7 +135,7 @@ impl Config {
             let event_page = Page::try_from(event_page_path.as_path())?;
             for entry in event_page.entries() {
                 if let Entry::CodeBlock(block) = entry {
-                    if block.kind.as_str() == "toml" {
+                    if block.is_toml() {
                         let event = block.try_into()?;
                         log::debug!("Event: {:?}", event);
                         events.push(event);

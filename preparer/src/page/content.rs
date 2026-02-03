@@ -142,11 +142,7 @@ impl FromStr for Content {
                         code = code + line + "\n";
                     }
 
-                    CodeBlock {
-                        kind: kind.to_owned(),
-                        code,
-                    }
-                    .into()
+                    CodeBlock::new(kind, code).into()
                 },
             );
 
@@ -198,8 +194,8 @@ mod tests {
             panic!("Code block not parsed as code block");
         };
 
-        assert_eq!("", code_block.kind.as_str());
-        assert_eq!("foo\n", code_block.code.as_str());
+        assert_eq!("", code_block.kind());
+        assert_eq!("foo\n", code_block.code());
 
         assert_eq!(string, format!("{content}").as_str());
 
@@ -217,8 +213,8 @@ mod tests {
             panic!("Code block not parsed as code block");
         };
 
-        assert_eq!("toml", code_block.kind.as_str());
-        assert_eq!("foo\n", code_block.code.as_str());
+        assert!(code_block.is_toml());
+        assert_eq!("foo\n", code_block.code());
 
         assert_eq!(string, format!("{content}").as_str());
 

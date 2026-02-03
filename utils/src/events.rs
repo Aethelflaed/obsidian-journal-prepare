@@ -50,6 +50,7 @@ pub struct DateRange {
 }
 
 impl DateRange {
+    #[must_use]
     pub fn contains(&self, date: NaiveDate) -> bool {
         (self.from.is_none() || self.from <= Some(date))
             && (self.to.is_none() || self.to >= Some(date))
@@ -57,6 +58,7 @@ impl DateRange {
 }
 
 impl Event {
+    #[must_use]
     pub fn matches(&self, date: NaiveDate) -> bool {
         if !self.validity.contains(date) {
             return false;
@@ -76,10 +78,10 @@ impl TryFrom<&CodeBlock> for Event {
     type Error = Error;
 
     fn try_from(block: &CodeBlock) -> Result<Self> {
-        if block.kind != "toml" {
+        if !block.is_toml() {
             anyhow::bail!("Not a toml block");
         }
-        let event: SerdeEvent = toml::from_str(&block.code)?;
+        let event: SerdeEvent = toml::from_str(block.code())?;
         event.try_into()
     }
 }
@@ -89,48 +91,36 @@ mod tests {
     use super::*;
     use claim::{assert_err, assert_ok};
 
-    fn block(content: &str) -> CodeBlock {
-        CodeBlock {
-            kind: "toml".to_owned(),
-            code: content.to_owned(),
-        }
-    }
-
     #[test]
     fn try_from_not_a_toml_block() {
-        assert_err!(Event::try_from(&CodeBlock {
-            kind: "foo".to_owned(),
-            code: String::new(),
-        }));
+        assert_err!(Event::try_from(&CodeBlock::new("foo", "")));
     }
 
     #[test]
     fn no_frequency() {
-        assert_err!(Event::try_from(&block(r#"content = "foo""#)));
+        assert_err!(Event::try_from(&CodeBlock::toml(r#"content = "foo""#)));
     }
 
     #[test]
     fn no_content() {
-        assert_err!(Event::try_from(&block(r#"frequency = "daily""#)));
+        assert_err!(Event::try_from(&CodeBlock::toml(r#"frequency = "daily""#)));
     }
 
     #[test]
-    fn simple() -> Result<()> {
-        let block = block(
+    fn simple() {
+        let event = assert_ok!(Event::try_from(&CodeBlock::toml(
             r#"
                 frequency = "daily"
                 content = "Foo"
             "#,
-        );
-        let event = Event::try_from(&block)?;
+        )));
         assert!(matches!(event.recurrence, Recurrence::Daily));
         assert_eq!("Foo", event.content);
-        Ok(())
     }
 
     #[test]
     fn dates() {
-        let event = assert_ok!(Event::try_from(&block(
+        let event = assert_ok!(Event::try_from(&CodeBlock::toml(
             r#"
                 frequency = "daily"
                 content = "Foo"

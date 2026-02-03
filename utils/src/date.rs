@@ -49,16 +49,20 @@ pub struct Month {
 }
 
 impl Month {
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn name(&self) -> &str {
         // The cast is safe
         #[allow(clippy::cast_possible_truncation)]
         chrono::Month::try_from(self.month as u8).unwrap().name()
     }
 
+    #[must_use]
     pub fn year(self) -> Year {
         self.year.into()
     }
 
+    #[must_use]
     pub const fn num_days(self) -> u32 {
         match self.month {
             2 => {
@@ -167,7 +171,9 @@ impl ToDateIterator for Year {
 }
 
 pub trait Navigation {
+    #[must_use]
     fn next(&self) -> Self;
+    #[must_use]
     fn prev(&self) -> Self;
 }
 

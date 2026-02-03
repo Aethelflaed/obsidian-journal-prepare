@@ -39,6 +39,8 @@ pub enum Recurrence {
 }
 
 impl Recurrence {
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn matches(&self, date: NaiveDate) -> bool {
         match self {
             Self::Daily => true,
@@ -191,13 +193,6 @@ mod tests {
     use crate::events::Event;
     use claim::{assert_err, assert_ok};
 
-    fn block(content: &str) -> CodeBlock {
-        CodeBlock {
-            kind: "toml".to_owned(),
-            code: content.to_owned(),
-        }
-    }
-
     fn monthday(index: u32) -> Monthday {
         Monthday::try_from(index).unwrap()
     }
@@ -290,7 +285,7 @@ mod tests {
 
         #[test]
         fn daily() {
-            assert_ok!(Event::try_from(&block(
+            assert_ok!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "daily"
                 content = "Daily"
@@ -300,7 +295,7 @@ mod tests {
 
         #[test]
         fn daily_weekdays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "daily"
                 weekdays = ["Monday"]
@@ -311,7 +306,7 @@ mod tests {
 
         #[test]
         fn daily_monthdays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "daily"
                 monthdays = [1]
@@ -322,7 +317,7 @@ mod tests {
 
         #[test]
         fn daily_yeardays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "daily"
                 yeardays = [1]
@@ -333,7 +328,7 @@ mod tests {
 
         #[test]
         fn daily_dates() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "daily"
                 dates = ["2026-02-03"]
@@ -348,7 +343,7 @@ mod tests {
 
         #[test]
         fn weekly_weekdays() {
-            let event = assert_ok!(Event::try_from(&block(
+            let event = assert_ok!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "weekly"
                 weekdays = ["Monday"]
@@ -361,7 +356,7 @@ mod tests {
 
         #[test]
         fn weekly_empty_weekdays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "weekly"
                 content = "Weekly"
@@ -371,7 +366,7 @@ mod tests {
 
         #[test]
         fn weekly_monthdays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "weekly"
                 monthdays = [1]
@@ -382,7 +377,7 @@ mod tests {
 
         #[test]
         fn weekly_yeardays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "weekly"
                 yeardays = [1]
@@ -393,7 +388,7 @@ mod tests {
 
         #[test]
         fn weekly_dates() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "weekly"
                 dates = ["2026-02-03"]
@@ -408,7 +403,7 @@ mod tests {
 
         #[test]
         fn monthly_unspecified() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "monthly"
                 content = "Weekly"
@@ -418,7 +413,7 @@ mod tests {
 
         #[test]
         fn monthly_weekdays() {
-            let event = assert_ok!(Event::try_from(&block(
+            let event = assert_ok!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "monthly"
                 weekdays = ["Monday"]
@@ -434,7 +429,7 @@ mod tests {
 
         #[test]
         fn monthly_weekdays_index() {
-            let event = assert_ok!(Event::try_from(&block(
+            let event = assert_ok!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "monthly"
                 weekdays = ["Sunday", "Friday"]
@@ -451,7 +446,7 @@ mod tests {
 
         #[test]
         fn monthly_monthdays() {
-            let event = assert_ok!(Event::try_from(&block(
+            let event = assert_ok!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "monthly"
                 monthdays = [1]
@@ -464,7 +459,7 @@ mod tests {
 
         #[test]
         fn monthly_yeardays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "monthly"
                 yeardays = [1]
@@ -475,7 +470,7 @@ mod tests {
 
         #[test]
         fn monthly_dates() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "monthly"
                 dates = ["2026-02-03"]
@@ -490,7 +485,7 @@ mod tests {
 
         #[test]
         fn yearly_yeardays() {
-            let event = assert_ok!(Event::try_from(&block(
+            let event = assert_ok!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "yearly"
                 yeardays = [1]
@@ -503,7 +498,7 @@ mod tests {
 
         #[test]
         fn yearly_empty_yeardays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "yearly"
                 content = "Happy new year"
@@ -513,7 +508,7 @@ mod tests {
 
         #[test]
         fn yearly_weekdays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "yearly"
                 weekdays = ["Monday"]
@@ -524,7 +519,7 @@ mod tests {
 
         #[test]
         fn yearly_monthdays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "yearly"
                 monthdays = [1]
@@ -535,7 +530,7 @@ mod tests {
 
         #[test]
         fn yearly_dates() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "yearly"
                 dates = ["2026-02-03"]
@@ -550,7 +545,7 @@ mod tests {
 
         #[test]
         fn once_dates() {
-            let event = assert_ok!(Event::try_from(&block(
+            let event = assert_ok!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "once"
                 dates = ["2026-02-03"]
@@ -563,7 +558,7 @@ mod tests {
 
         #[test]
         fn once_empty_dates() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "once"
                 content = "Special date"
@@ -573,7 +568,7 @@ mod tests {
 
         #[test]
         fn once_weekdays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "once"
                 weekdays = ["Monday"]
@@ -584,7 +579,7 @@ mod tests {
 
         #[test]
         fn once_monthdays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "once"
                 monthdays = [1]
@@ -595,7 +590,7 @@ mod tests {
 
         #[test]
         fn once_yeardays() {
-            assert_err!(Event::try_from(&block(
+            assert_err!(Event::try_from(&CodeBlock::toml(
                 r#"
                 frequency = "once"
                 yeardays = [1]
