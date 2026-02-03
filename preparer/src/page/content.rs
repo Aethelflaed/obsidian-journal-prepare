@@ -3,6 +3,7 @@ use saphyr::{ScalarOwned, YamlOwned};
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use utils::content::CodeBlock;
 
 #[derive(Debug)]
 pub struct Content {
@@ -62,19 +63,6 @@ impl Entry {
             Self::Line(s) => s.is_empty(),
             Self::CodeBlock(block) => block.is_empty(),
         }
-    }
-}
-
-#[derive(Debug, Clone, derive_more::Display, Eq, PartialEq)]
-#[display("```{kind}\n{code}```")]
-pub struct CodeBlock {
-    pub kind: String,
-    pub code: String,
-}
-
-impl CodeBlock {
-    pub const fn is_empty(&self) -> bool {
-        self.code.is_empty()
     }
 }
 

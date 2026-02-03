@@ -2,9 +2,9 @@ use anyhow::Result;
 use chrono::{Datelike, Days, IsoWeek, NaiveDate, Weekday};
 
 use super::Vault;
-use crate::date_utils::{Month, Navigation, ToDateIterator, Year};
 use crate::options::{GenericPage, GenericSettings, PageOptions};
 use crate::utils::{ToEmbedded, ToLink};
+use utils::date::{Month, Navigation, ToDateIterator, Year};
 
 pub struct Preparer<'a> {
     pub from: NaiveDate,

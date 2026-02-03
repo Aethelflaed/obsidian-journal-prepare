@@ -1,0 +1,14 @@
+[package]
+name = "utils"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+chrono = { version = "0.4.43", features = ["serde"] }
+derive_more = { version = "2.1.1", features = ["display", "error", "from", "is_variant"] }
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "0.9.11"
+
+[dev-dependencies]
+claim = "0.5.0"

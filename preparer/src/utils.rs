@@ -1,6 +1,6 @@
-use crate::date_utils::{Month, Year};
 use crate::vault::Vault;
 use chrono::{Datelike, IsoWeek, NaiveDate};
+use utils::date::{Month, Year};
 
 #[derive(Debug, Clone, derive_more::Display)]
 #[display("[[/{path}|{title}]]")]
@@ -101,7 +101,7 @@ impl ToPageName for Year {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::date_utils::{Month, Year};
+    use utils::date::{Month, Year};
 
     mod page_name {
         use super::*;

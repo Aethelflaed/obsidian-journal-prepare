@@ -1,7 +1,5 @@
 use anyhow::Result;
 
-mod date_utils;
-mod events;
 mod options;
 mod page;
 mod utils;

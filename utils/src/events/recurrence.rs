@@ -1,4 +1,4 @@
-use crate::date_utils::{InvalidMonthday, InvalidYearday, Month, Monthday, Yearday};
+use crate::date::{InvalidMonthday, InvalidYearday, Month, Monthday, Yearday};
 use anyhow::{Error, Result};
 use chrono::{Datelike, NaiveDate, Weekday};
 use serde::{Deserialize, Serialize};
@@ -187,8 +187,8 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::content::CodeBlock;
     use crate::events::Event;
-    use crate::page::content::CodeBlock;
     use claim::{assert_err, assert_ok};
 
     fn block(content: &str) -> CodeBlock {
@@ -225,42 +225,64 @@ mod tests {
 
         assert!(Monthly(vec![monthday(1)]).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
         assert!(!Monthly(vec![monthday(1)]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
-        assert!(Monthly(vec![monthday(1), monthday(2)])
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(
+            Monthly(vec![monthday(1), monthday(2)])
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap())
+        );
 
-        assert!(!RelativeMonthly(vec![Mon], First)
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
+        assert!(
+            !RelativeMonthly(vec![Mon], First)
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap())
+        );
         assert!(
             RelativeMonthly(vec![Sun], First).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap())
         );
-        assert!(RelativeMonthly(vec![Sun, Mon], First)
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
-        assert!(!RelativeMonthly(vec![Sun, Mon], First)
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 8).unwrap()));
-        assert!(RelativeMonthly(vec![Sun, Mon], Second)
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 8).unwrap()));
-        assert!(!RelativeMonthly(vec![Sun, Mon], Third)
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
-        assert!(RelativeMonthly(vec![Sun], Fourth)
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 22).unwrap()));
+        assert!(
+            RelativeMonthly(vec![Sun, Mon], First)
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap())
+        );
+        assert!(
+            !RelativeMonthly(vec![Sun, Mon], First)
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 8).unwrap())
+        );
+        assert!(
+            RelativeMonthly(vec![Sun, Mon], Second)
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 8).unwrap())
+        );
+        assert!(
+            !RelativeMonthly(vec![Sun, Mon], Third)
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap())
+        );
+        assert!(
+            RelativeMonthly(vec![Sun], Fourth)
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 22).unwrap())
+        );
         assert!(
             RelativeMonthly(vec![Sun], Last).matches(NaiveDate::from_ymd_opt(2026, 2, 22).unwrap())
         );
 
         assert!(Yearly(vec![yearday(32)]).matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
         assert!(!Yearly(vec![yearday(32)]).matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
-        assert!(Yearly(vec![yearday(32), yearday(33)])
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(
+            Yearly(vec![yearday(32), yearday(33)])
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap())
+        );
 
-        assert!(Once(vec![NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()])
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()));
-        assert!(!Once(vec![NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()])
-            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
-        assert!(Once(vec![
-            NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
-            NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()
-        ])
-        .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()));
+        assert!(
+            Once(vec![NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()])
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap())
+        );
+        assert!(
+            !Once(vec![NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()])
+                .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap())
+        );
+        assert!(
+            Once(vec![
+                NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(),
+                NaiveDate::from_ymd_opt(2026, 2, 2).unwrap()
+            ])
+            .matches(NaiveDate::from_ymd_opt(2026, 2, 2).unwrap())
+        );
     }
 
     mod daily {

@@ -1,10 +1,10 @@
-use crate::events::Event;
 use crate::options::PageSettings;
 use crate::page::{Entry, Page};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use utils::events::Event;
 
 #[derive(Debug)]
 pub struct Config {

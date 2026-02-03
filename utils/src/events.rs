@@ -1,9 +1,9 @@
-use crate::page::content::CodeBlock;
+use crate::content::CodeBlock;
 use anyhow::{Error, Result};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-mod recurrence;
+pub mod recurrence;
 pub use recurrence::Recurrence;
 use recurrence::SerdeRecurrence;
 

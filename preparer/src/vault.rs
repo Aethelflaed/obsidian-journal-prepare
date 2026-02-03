@@ -1,10 +1,10 @@
-use crate::events::Event;
 use crate::options::PageOptions;
 use crate::page::Page;
 use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use std::path::{Path, PathBuf};
+use utils::events::Event;
 
 pub mod config;
 pub use config::Config;
