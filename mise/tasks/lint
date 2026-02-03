@@ -3,7 +3,7 @@
 
 set -eu -o pipefail
 
-if [ "$1" = "pedantic" ]; then
+if [ "${1:-}" = "pedantic" ]; then
   {
     cargo fmt -- --color=always
     cargo clippy \
