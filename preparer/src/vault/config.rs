@@ -70,12 +70,12 @@ impl TryFrom<PathBuf> for Config {
 }
 
 impl From<(PathBuf, SerdeConfig)> for Config {
-    fn from(tuple: (PathBuf, SerdeConfig)) -> Self {
+    fn from((path, config): (PathBuf, SerdeConfig)) -> Self {
         Self {
-            path: tuple.0,
-            journals_folder: tuple.1.journals_folder,
-            event_files: tuple.1.event_files,
-            settings: tuple.1.settings,
+            path,
+            journals_folder: config.journals_folder,
+            event_files: config.event_files,
+            settings: config.settings,
         }
     }
 }
