@@ -1,9 +1,9 @@
 use super::Vault;
-use crate::options::{GenericPage, GenericSettings, PageOptions};
 use crate::utils::{ToEmbedded, ToLink};
 use anyhow::Result;
 use chrono::{Datelike, Days, IsoWeek, NaiveDate, Weekday};
 use utils::date::{Month, Navigation, ToDateIterator, Year};
+use utils::options::{GenericPage, GenericSettings, PageOptions};
 
 pub trait Prepare {
     fn prepare(&self, from: NaiveDate, to: NaiveDate, page_options: PageOptions) -> Result<()>;

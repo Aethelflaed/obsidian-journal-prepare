@@ -5,7 +5,10 @@ edition = "2024"
 
 [dependencies]
 chrono = { version = "0.4.43", features = ["serde"] }
+clap = { version = "4.5.57", features = ["cargo"] }
+clap-verbosity-flag = "3.0.4"
 derive_more = { version = "2.1.1", features = ["display", "error", "from", "is_variant"] }
+log = "0.4.29"
 serde = { version = "1.0.228", features = ["derive"] }
 toml = "0.9.11"
 

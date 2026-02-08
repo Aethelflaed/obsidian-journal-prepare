@@ -1,11 +1,11 @@
 use anyhow::Result;
 
-mod options;
 mod page;
 mod preparer;
 mod utils;
 mod vault;
 
+use ::utils::options;
 use preparer::Prepare;
 use vault::Vault;
 

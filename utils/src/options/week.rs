@@ -129,126 +129,105 @@ impl GenericPage for Page {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::options::{parse, Options, PageOptions};
-
-    fn parsed_cmd<I>(args_iter: I) -> Result<Options, clap::error::Error>
-    where
-        I: IntoIterator<Item = &'static str>,
-    {
-        let base_args = ["binary_name", "--path", "."];
-        parse(base_args.into_iter().chain(args_iter))
-    }
+    use crate::options::tests::{parsed_cmd_err, parsed_cmd_ok};
+    use crate::options::{Options, PageOptions};
 
     #[test]
-    fn flag_week_nav() -> anyhow::Result<()> {
+    fn flag_week_nav() {
         let Options {
             page_options: PageOptions { week: page, .. },
             ..
-        } = parsed_cmd(["--week", "nav"])?;
+        } = parsed_cmd_ok!(["--week", "nav"]);
 
         assert!(!page.default);
         assert!(!page.settings().week);
         assert!(!page.settings().link_to_month);
         assert!(page.settings().nav_link);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_week_month() -> anyhow::Result<()> {
+    fn flag_week_month() {
         let Options {
             page_options: PageOptions { week: page, .. },
             ..
-        } = parsed_cmd(["--week", "month"])?;
+        } = parsed_cmd_ok!(["--week", "month"]);
 
         assert!(!page.default);
         assert!(!page.settings().week);
         assert!(page.settings().link_to_month);
         assert!(!page.settings().nav_link);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_week_week() -> anyhow::Result<()> {
+    fn flag_week_week() {
         let Options {
             page_options: PageOptions { week: page, .. },
             ..
-        } = parsed_cmd(["--week", "week"])?;
+        } = parsed_cmd_ok!(["--week", "week"]);
 
         assert!(!page.default);
         assert!(page.settings().week);
         assert!(!page.settings().link_to_month);
         assert!(!page.settings().nav_link);
-
-        Ok(())
     }
 
     #[test]
-    fn all_flag_week() -> anyhow::Result<()> {
+    fn all_flag_week() {
         let Options {
             page_options: PageOptions { week: page, .. },
             ..
-        } = parsed_cmd(["--week", "nav", "--week", "month", "--week", "week"])?;
+        } = parsed_cmd_ok!(["--week", "nav", "--week", "month", "--week", "week"]);
 
         assert!(!page.default);
         assert!(!page.is_default());
         assert!(page.settings().week);
         assert!(page.settings().link_to_month);
         assert!(page.settings().nav_link);
-
-        Ok(())
     }
 
     #[test]
-    fn all_flag_week_csv() -> anyhow::Result<()> {
+    fn all_flag_week_csv() {
         let Options {
             page_options: PageOptions { week: page, .. },
             ..
-        } = parsed_cmd(["--week", "nav,month,week"])?;
+        } = parsed_cmd_ok!(["--week", "nav,month,week"]);
 
         assert!(!page.default);
         assert!(!page.is_default());
         assert!(page.settings().week);
         assert!(page.settings().link_to_month);
         assert!(page.settings().nav_link);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_absence_produces_default_page() -> anyhow::Result<()> {
+    fn flag_absence_produces_default_page() {
         let Options {
             page_options: PageOptions { week: page, .. },
             ..
-        } = parsed_cmd(Vec::<&str>::new())?;
+        } = parsed_cmd_ok!(Vec::<&str>::new());
         assert!(page.is_default());
-
-        Ok(())
     }
 
     #[test]
     fn flag_requires_argument() {
-        assert!(parsed_cmd(["--week", "nav"]).is_ok());
-        assert!(parsed_cmd(["--week"]).is_err());
+        parsed_cmd_ok!(["--week", "nav"]);
+        parsed_cmd_err!(["--week"]);
     }
 
     #[test]
-    fn disabling_flag_produces_disabled_page() -> anyhow::Result<()> {
+    fn disabling_flag_produces_disabled_page() {
         let Options {
             page_options: PageOptions { week: page, .. },
             ..
-        } = parsed_cmd(["--no-week-page"])?;
+        } = parsed_cmd_ok!(["--no-week-page"]);
         assert!(!page.is_default());
         assert!(page.settings().is_empty());
-
-        Ok(())
     }
 
     #[test]
     fn both_flags_are_exclusive() {
-        assert!(parsed_cmd(["--week", "nav"]).is_ok());
-        assert!(parsed_cmd(["--no-week-page"]).is_ok());
-        assert!(parsed_cmd(["--no-week-page", "--week", "nav"]).is_err());
+        parsed_cmd_ok!(["--week", "nav"]);
+        parsed_cmd_ok!(["--no-week-page"]);
+        parsed_cmd_err!(["--no-week-page", "--week", "nav"]);
     }
 }

@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum Option {
-    /// Add link to months
+    /// Add embedded month days
     Month,
-    /// Add property links to previous and next year
+    /// Add property links to previous and next month
     Nav,
 }
 
@@ -94,17 +94,17 @@ impl GenericPage for Page {
     }
 
     fn help() -> &'static str {
-        "Configure year pages"
+        "Configure month pages"
     }
     fn disabling_help() -> &'static str {
-        "Do not update year pages"
+        "Do not update month pages"
     }
 
     fn flag() -> &'static str {
-        "year"
+        "month"
     }
     fn disabling_flag() -> &'static str {
-        "no-year-page"
+        "no-month-page"
     }
 
     fn settings(&self) -> &Settings {
@@ -120,107 +120,88 @@ impl GenericPage for Page {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::options::{parse, Options, PageOptions};
-
-    fn parsed_cmd<I>(args_iter: I) -> Result<Options, clap::error::Error>
-    where
-        I: IntoIterator<Item = &'static str>,
-    {
-        let base_args = ["binary_name", "--path", "."];
-        parse(base_args.into_iter().chain(args_iter))
-    }
+    use crate::options::tests::{parsed_cmd_err, parsed_cmd_ok};
+    use crate::options::{Options, PageOptions};
 
     #[test]
-    fn flag_year_nav() -> anyhow::Result<()> {
+    fn flag_month_nav() {
         let Options {
-            page_options: PageOptions { year: page, .. },
+            page_options: PageOptions { month: page, .. },
             ..
-        } = parsed_cmd(["--year", "nav"])?;
+        } = parsed_cmd_ok!(["--month", "nav"]);
 
         assert!(!page.default);
         assert!(!page.settings().month);
         assert!(page.settings().nav_link);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_year_month() -> anyhow::Result<()> {
+    fn flag_month_month() {
         let Options {
-            page_options: PageOptions { year: page, .. },
+            page_options: PageOptions { month: page, .. },
             ..
-        } = parsed_cmd(["--year", "month"])?;
+        } = parsed_cmd_ok!(["--month", "month"]);
 
         assert!(!page.default);
         assert!(page.settings().month);
         assert!(!page.settings().nav_link);
-
-        Ok(())
     }
 
     #[test]
-    fn all_flag_year() -> anyhow::Result<()> {
+    fn all_flag_month() {
         let Options {
-            page_options: PageOptions { year: page, .. },
+            page_options: PageOptions { month: page, .. },
             ..
-        } = parsed_cmd(["--year", "nav", "--year", "month"])?;
+        } = parsed_cmd_ok!(["--month", "nav", "--month", "month"]);
 
         assert!(!page.default);
         assert!(!page.is_default());
         assert!(page.settings().month);
         assert!(page.settings().nav_link);
-
-        Ok(())
     }
 
     #[test]
-    fn all_flag_year_csv() -> anyhow::Result<()> {
+    fn all_flag_month_csv() {
         let Options {
-            page_options: PageOptions { year: page, .. },
+            page_options: PageOptions { month: page, .. },
             ..
-        } = parsed_cmd(["--year", "nav,month"])?;
+        } = parsed_cmd_ok!(["--month", "nav,month"]);
 
         assert!(!page.default);
         assert!(!page.is_default());
         assert!(page.settings().month);
         assert!(page.settings().nav_link);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_absence_produces_default_page() -> anyhow::Result<()> {
+    fn flag_absence_produces_default_page() {
         let Options {
-            page_options: PageOptions { year: page, .. },
+            page_options: PageOptions { month: page, .. },
             ..
-        } = parsed_cmd(Vec::<&str>::new())?;
+        } = parsed_cmd_ok!(Vec::<&str>::new());
         assert!(page.is_default());
-
-        Ok(())
     }
 
     #[test]
     fn flag_requires_argument() {
-        assert!(parsed_cmd(["--year", "nav"]).is_ok());
-        assert!(parsed_cmd(["--year"]).is_err());
+        parsed_cmd_ok!(["--month", "nav"]);
+        parsed_cmd_err!(["--month"]);
     }
 
     #[test]
-    fn disabling_flag_produces_disabled_page() -> anyhow::Result<()> {
+    fn disabling_flag_produces_disabled_page() {
         let Options {
-            page_options: PageOptions { year: page, .. },
+            page_options: PageOptions { month: page, .. },
             ..
-        } = parsed_cmd(["--no-year-page"])?;
+        } = parsed_cmd_ok!(["--no-month-page"]);
         assert!(!page.is_default());
         assert!(page.settings().is_empty());
-
-        Ok(())
     }
 
     #[test]
     fn both_flags_are_exclusive() {
-        assert!(parsed_cmd(["--year", "nav"]).is_ok());
-        assert!(parsed_cmd(["--no-year-page"]).is_ok());
-        assert!(parsed_cmd(["--no-year-page", "--year", "nav"]).is_err());
+        parsed_cmd_ok!(["--month", "nav"]);
+        parsed_cmd_ok!(["--no-month-page"]);
+        parsed_cmd_err!(["--no-month-page", "--month", "nav"]);
     }
 }

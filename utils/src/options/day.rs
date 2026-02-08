@@ -149,22 +149,15 @@ impl GenericPage for Page {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::options::{parse, Options, PageOptions};
-
-    fn parsed_cmd<I>(args_iter: I) -> Result<Options, clap::error::Error>
-    where
-        I: IntoIterator<Item = &'static str>,
-    {
-        let base_args = ["binary_name", "--path", "."];
-        parse(base_args.into_iter().chain(args_iter))
-    }
+    use crate::options::tests::{parsed_cmd_err, parsed_cmd_ok};
+    use crate::options::{Options, PageOptions};
 
     #[test]
-    fn flag_day_day() -> anyhow::Result<()> {
+    fn flag_day_day() {
         let Options {
             page_options: PageOptions { day: page, .. },
             ..
-        } = parsed_cmd(["--day", "day"])?;
+        } = parsed_cmd_ok!(["--day", "day"]);
 
         assert!(!page.default);
         assert!(page.settings().day_of_week);
@@ -172,16 +165,14 @@ mod tests {
         assert!(!page.settings().link_to_month);
         assert!(!page.settings().nav_link);
         assert!(!page.settings().events);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_day_nav() -> anyhow::Result<()> {
+    fn flag_day_nav() {
         let Options {
             page_options: PageOptions { day: page, .. },
             ..
-        } = parsed_cmd(["--day", "nav"])?;
+        } = parsed_cmd_ok!(["--day", "nav"]);
 
         assert!(!page.default);
         assert!(!page.settings().day_of_week);
@@ -189,16 +180,14 @@ mod tests {
         assert!(!page.settings().link_to_month);
         assert!(page.settings().nav_link);
         assert!(!page.settings().events);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_day_month() -> anyhow::Result<()> {
+    fn flag_day_month() {
         let Options {
             page_options: PageOptions { day: page, .. },
             ..
-        } = parsed_cmd(["--day", "month"])?;
+        } = parsed_cmd_ok!(["--day", "month"]);
 
         assert!(!page.default);
         assert!(!page.settings().day_of_week);
@@ -206,16 +195,14 @@ mod tests {
         assert!(page.settings().link_to_month);
         assert!(!page.settings().nav_link);
         assert!(!page.settings().events);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_day_week() -> anyhow::Result<()> {
+    fn flag_day_week() {
         let Options {
             page_options: PageOptions { day: page, .. },
             ..
-        } = parsed_cmd(["--day", "week"])?;
+        } = parsed_cmd_ok!(["--day", "week"]);
 
         assert!(!page.default);
         assert!(!page.settings().day_of_week);
@@ -223,16 +210,14 @@ mod tests {
         assert!(!page.settings().link_to_month);
         assert!(!page.settings().nav_link);
         assert!(!page.settings().events);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_day_events() -> anyhow::Result<()> {
+    fn flag_day_events() {
         let Options {
             page_options: PageOptions { day: page, .. },
             ..
-        } = parsed_cmd(["--day", "events"])?;
+        } = parsed_cmd_ok!(["--day", "events"]);
 
         assert!(!page.default);
         assert!(!page.settings().day_of_week);
@@ -240,18 +225,16 @@ mod tests {
         assert!(!page.settings().link_to_month);
         assert!(!page.settings().nav_link);
         assert!(page.settings().events);
-
-        Ok(())
     }
 
     #[test]
-    fn all_flag_day() -> anyhow::Result<()> {
+    fn all_flag_day() {
         let Options {
             page_options: PageOptions { day: page, .. },
             ..
-        } = parsed_cmd([
+        } = parsed_cmd_ok!([
             "--day", "nav", "--day", "month", "--day", "week", "--day", "day", "--day", "events",
-        ])?;
+        ]);
 
         assert!(!page.default);
         assert!(!page.is_default());
@@ -260,16 +243,14 @@ mod tests {
         assert!(page.settings().link_to_month);
         assert!(page.settings().nav_link);
         assert!(page.settings().events);
-
-        Ok(())
     }
 
     #[test]
-    fn all_flag_day_csv() -> anyhow::Result<()> {
+    fn all_flag_day_csv() {
         let Options {
             page_options: PageOptions { day: page, .. },
             ..
-        } = parsed_cmd(["--day", "day,events,nav,month,week"])?;
+        } = parsed_cmd_ok!(["--day", "day,events,nav,month,week"]);
 
         assert!(!page.default);
         assert!(!page.is_default());
@@ -278,43 +259,37 @@ mod tests {
         assert!(page.settings().link_to_month);
         assert!(page.settings().nav_link);
         assert!(page.settings().events);
-
-        Ok(())
     }
 
     #[test]
-    fn flag_absence_produces_default_page() -> anyhow::Result<()> {
+    fn flag_absence_produces_default_page() {
         let Options {
             page_options: PageOptions { day: page, .. },
             ..
-        } = parsed_cmd(Vec::<&str>::new())?;
+        } = parsed_cmd_ok!(Vec::<&str>::new());
         assert!(page.is_default());
-
-        Ok(())
     }
 
     #[test]
     fn flag_requires_argument() {
-        assert!(parsed_cmd(["--day", "nav"]).is_ok());
-        assert!(parsed_cmd(["--day"]).is_err());
+        parsed_cmd_ok!(["--day", "nav"]);
+        parsed_cmd_err!(["--day"]);
     }
 
     #[test]
-    fn disabling_flag_produces_disabled_page() -> anyhow::Result<()> {
+    fn disabling_flag_produces_disabled_page() {
         let Options {
             page_options: PageOptions { day: page, .. },
             ..
-        } = parsed_cmd(["--no-day-page"])?;
+        } = parsed_cmd_ok!(["--no-day-page"]);
         assert!(!page.is_default());
         assert!(page.settings().is_empty());
-
-        Ok(())
     }
 
     #[test]
     fn both_flags_are_exclusive() {
-        assert!(parsed_cmd(["--day", "nav"]).is_ok());
-        assert!(parsed_cmd(["--no-day-page"]).is_ok());
-        assert!(parsed_cmd(["--no-day-page", "--day", "nav"]).is_err());
+        parsed_cmd_ok!(["--day", "nav"]);
+        parsed_cmd_ok!(["--no-day-page"]);
+        parsed_cmd_err!(["--no-day-page", "--day", "nav"]);
     }
 }

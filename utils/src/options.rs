@@ -1,4 +1,3 @@
-use anyhow::Result;
 use chrono::NaiveDate;
 use clap::Arg;
 use serde::{Deserialize, Serialize};
@@ -27,11 +26,15 @@ pub trait GenericPage: Default + PartialEq {
         self == &Self::default()
     }
 
+    #[must_use]
     fn help() -> &'static str;
+    #[must_use]
     fn disabling_help() -> &'static str;
+    #[must_use]
     fn default_long_help() -> String {
         <Self as Default>::default().long_help()
     }
+    #[must_use]
     fn long_help(&self) -> String {
         use clap::ValueEnum;
 
@@ -56,18 +59,24 @@ pub trait GenericPage: Default + PartialEq {
         )
     }
 
+    #[must_use]
     fn disabled() -> Self;
 
+    #[must_use]
     fn settings(&self) -> &Self::Settings;
     fn update(&mut self, settings: &Self::Settings);
 
+    #[must_use]
     fn flag() -> &'static str;
+    #[must_use]
     fn disabling_flag() -> &'static str;
 
+    #[must_use]
     fn flag_short() -> Option<char> {
         Self::flag().chars().next()
     }
 
+    #[must_use]
     fn arg() -> Arg {
         use clap::builder::EnumValueParser;
 
@@ -81,6 +90,7 @@ pub trait GenericPage: Default + PartialEq {
             .action(clap::ArgAction::Append)
     }
 
+    #[must_use]
     fn disabling_arg() -> Arg {
         Arg::new(Self::disabling_flag())
             .long(Self::disabling_flag())
@@ -90,6 +100,7 @@ pub trait GenericPage: Default + PartialEq {
     }
 }
 
+#[derive(Debug)]
 pub struct Options {
     pub from: NaiveDate,
     pub to: NaiveDate,
@@ -121,28 +132,28 @@ pub struct PageSettings {
 
 impl PageOptions {
     pub fn update(&mut self, settings: &PageSettings) {
-        if self.day.is_default() {
-            if let Some(day_settings) = settings.day.as_ref() {
-                self.day.update(day_settings);
-            }
+        if self.day.is_default()
+            && let Some(day_settings) = settings.day.as_ref()
+        {
+            self.day.update(day_settings);
         }
 
-        if self.week.is_default() {
-            if let Some(week_settings) = settings.week.as_ref() {
-                self.week.update(week_settings);
-            }
+        if self.week.is_default()
+            && let Some(week_settings) = settings.week.as_ref()
+        {
+            self.week.update(week_settings);
         }
 
-        if self.month.is_default() {
-            if let Some(month_settings) = settings.month.as_ref() {
-                self.month.update(month_settings);
-            }
+        if self.month.is_default()
+            && let Some(month_settings) = settings.month.as_ref()
+        {
+            self.month.update(month_settings);
         }
 
-        if self.year.is_default() {
-            if let Some(year_settings) = settings.year.as_ref() {
-                self.year.update(year_settings);
-            }
+        if self.year.is_default()
+            && let Some(year_settings) = settings.year.as_ref()
+        {
+            self.year.update(year_settings);
         }
     }
 }
@@ -248,7 +259,7 @@ where
 mod tests {
     use super::*;
 
-    fn parsed_cmd<I>(args_iter: I) -> Result<Options, clap::error::Error>
+    pub fn parsed_cmd<I>(args_iter: I) -> Result<Options, clap::error::Error>
     where
         I: IntoIterator<Item = &'static str>,
     {
@@ -256,45 +267,66 @@ mod tests {
         parse(base_args.into_iter().chain(args_iter))
     }
 
+    macro_rules! parsed_cmd_ok {
+        ($expr:expr) => {
+            claim::assert_ok!(crate::options::tests::parsed_cmd($expr))
+        };
+    }
+    pub(crate) use parsed_cmd_ok;
+
+    macro_rules! parsed_cmd_err {
+        ($expr:expr) => {
+            claim::assert_err!(crate::options::tests::parsed_cmd($expr))
+        };
+    }
+    pub(crate) use parsed_cmd_err;
+
     #[test]
-    fn log_level_filter() -> anyhow::Result<()> {
-        assert_eq!(log::LevelFilter::Off, parsed_cmd(["-q"])?.log_level_filter);
-        assert_eq!(log::LevelFilter::Off, parsed_cmd(["-qq"])?.log_level_filter);
-        assert_eq!(log::LevelFilter::Error, parsed_cmd([])?.log_level_filter);
-        assert_eq!(log::LevelFilter::Warn, parsed_cmd(["-v"])?.log_level_filter);
+    fn log_level_filter() {
+        assert_eq!(
+            log::LevelFilter::Off,
+            parsed_cmd_ok!(["-q"]).log_level_filter
+        );
+        assert_eq!(
+            log::LevelFilter::Off,
+            parsed_cmd_ok!(["-qq"]).log_level_filter
+        );
+        assert_eq!(log::LevelFilter::Error, parsed_cmd_ok!([]).log_level_filter);
+        assert_eq!(
+            log::LevelFilter::Warn,
+            parsed_cmd_ok!(["-v"]).log_level_filter
+        );
         assert_eq!(
             log::LevelFilter::Info,
-            parsed_cmd(["-vv"])?.log_level_filter
+            parsed_cmd_ok!(["-vv"]).log_level_filter
         );
         assert_eq!(
             log::LevelFilter::Debug,
-            parsed_cmd(["-vvv"])?.log_level_filter
+            parsed_cmd_ok!(["-vvv"]).log_level_filter
         );
         assert_eq!(
             log::LevelFilter::Trace,
-            parsed_cmd(["-vvvv"])?.log_level_filter
+            parsed_cmd_ok!(["-vvvv"]).log_level_filter
         );
         assert_eq!(
             log::LevelFilter::Trace,
-            parsed_cmd(["-vvvvv"])?.log_level_filter
+            parsed_cmd_ok!(["-vvvvv"]).log_level_filter
         );
 
-        assert!(parsed_cmd(["-q", "-v"]).is_err());
-
-        Ok(())
+        parsed_cmd_err!(["-q", "-v"]);
     }
 
     #[test]
     fn from_after_to() {
-        assert!(parsed_cmd(["--from", "2025-12-31", "--to", "2025-01-01"]).is_err());
-        assert!(parsed_cmd(["--from", "2025-01-01", "--to", "2025-12-31"]).is_ok());
+        parsed_cmd_err!(["--from", "2025-12-31", "--to", "2025-01-01"]);
+        parsed_cmd_ok!(["--from", "2025-01-01", "--to", "2025-12-31"]);
     }
 
     #[test]
-    fn update_page_options_day_does_not_override_flags() -> anyhow::Result<()> {
+    fn update_page_options_day_does_not_override_flags() {
         let Options {
             mut page_options, ..
-        } = parsed_cmd(["--day", "day,week"])?;
+        } = parsed_cmd_ok!(["--day", "day,week"]);
 
         let page_settings = PageSettings {
             day: Some(day::Settings::default()),
@@ -304,14 +336,13 @@ mod tests {
         page_options.update(&page_settings);
         assert!(!page_options.day.is_default());
         assert!(page_options.day.settings().day_of_week);
-        Ok(())
     }
 
     #[test]
-    fn update_page_options_day_does_not_override_disabling_flag() -> anyhow::Result<()> {
+    fn update_page_options_day_does_not_override_disabling_flag() {
         let Options {
             mut page_options, ..
-        } = parsed_cmd(["--no-day-page"])?;
+        } = parsed_cmd_ok!(["--no-day-page"]);
 
         let page_settings = PageSettings {
             day: Some(day::Settings {
@@ -324,7 +355,6 @@ mod tests {
         page_options.update(&page_settings);
         assert!(!page_options.day.is_default());
         assert!(!page_options.day.settings().day_of_week);
-        Ok(())
     }
 
     #[test]
@@ -367,10 +397,10 @@ mod tests {
     }
 
     #[test]
-    fn update_page_options_week_does_not_override_flags() -> anyhow::Result<()> {
+    fn update_page_options_week_does_not_override_flags() {
         let Options {
             mut page_options, ..
-        } = parsed_cmd(["--week", "week,month"])?;
+        } = parsed_cmd_ok!(["--week", "week,month"]);
 
         let page_settings = PageSettings {
             week: Some(week::Settings::default()),
@@ -380,14 +410,13 @@ mod tests {
         page_options.update(&page_settings);
         assert!(!page_options.week.is_default());
         assert!(page_options.week.settings().link_to_month);
-        Ok(())
     }
 
     #[test]
-    fn update_page_options_week_does_not_override_disabling_flag() -> anyhow::Result<()> {
+    fn update_page_options_week_does_not_override_disabling_flag() {
         let Options {
             mut page_options, ..
-        } = parsed_cmd(["--no-week-page"])?;
+        } = parsed_cmd_ok!(["--no-week-page"]);
 
         let page_settings = PageSettings {
             week: Some(week::Settings {
@@ -400,7 +429,6 @@ mod tests {
         page_options.update(&page_settings);
         assert!(!page_options.week.is_default());
         assert!(!page_options.week.settings().link_to_month);
-        Ok(())
     }
 
     #[test]
@@ -443,10 +471,10 @@ mod tests {
     }
 
     #[test]
-    fn update_page_options_month_does_not_override_flags() -> anyhow::Result<()> {
+    fn update_page_options_month_does_not_override_flags() {
         let Options {
             mut page_options, ..
-        } = parsed_cmd(["--month", "nav"])?;
+        } = parsed_cmd_ok!(["--month", "nav"]);
 
         let page_settings = PageSettings {
             month: Some(month::Settings::default()),
@@ -456,14 +484,13 @@ mod tests {
         page_options.update(&page_settings);
         assert!(!page_options.month.is_default());
         assert!(page_options.month.settings().nav_link);
-        Ok(())
     }
 
     #[test]
-    fn update_page_options_month_does_not_override_disabling_flag() -> anyhow::Result<()> {
+    fn update_page_options_month_does_not_override_disabling_flag() {
         let Options {
             mut page_options, ..
-        } = parsed_cmd(["--no-month-page"])?;
+        } = parsed_cmd_ok!(["--no-month-page"]);
 
         let page_settings = PageSettings {
             month: Some(month::Settings {
@@ -476,7 +503,6 @@ mod tests {
         page_options.update(&page_settings);
         assert!(!page_options.month.is_default());
         assert!(!page_options.month.settings().nav_link);
-        Ok(())
     }
 
     #[test]
@@ -519,10 +545,10 @@ mod tests {
     }
 
     #[test]
-    fn update_page_options_year_does_not_override_flags() -> anyhow::Result<()> {
+    fn update_page_options_year_does_not_override_flags() {
         let Options {
             mut page_options, ..
-        } = parsed_cmd(["--year", "nav"])?;
+        } = parsed_cmd_ok!(["--year", "nav"]);
 
         let page_settings = PageSettings {
             year: Some(year::Settings::default()),
@@ -532,14 +558,13 @@ mod tests {
         page_options.update(&page_settings);
         assert!(!page_options.year.is_default());
         assert!(page_options.year.settings().nav_link);
-        Ok(())
     }
 
     #[test]
-    fn update_page_options_year_does_not_override_disabling_flag() -> anyhow::Result<()> {
+    fn update_page_options_year_does_not_override_disabling_flag() {
         let Options {
             mut page_options, ..
-        } = parsed_cmd(["--no-year-page"])?;
+        } = parsed_cmd_ok!(["--no-year-page"]);
 
         let page_settings = PageSettings {
             year: Some(year::Settings {
@@ -552,7 +577,6 @@ mod tests {
         page_options.update(&page_settings);
         assert!(!page_options.year.is_default());
         assert!(!page_options.year.settings().nav_link);
-        Ok(())
     }
 
     #[test]
