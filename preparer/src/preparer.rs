@@ -1,10 +1,27 @@
-use anyhow::Result;
-use chrono::{Datelike, Days, IsoWeek, NaiveDate, Weekday};
-
 use super::Vault;
 use crate::options::{GenericPage, GenericSettings, PageOptions};
 use crate::utils::{ToEmbedded, ToLink};
+use anyhow::Result;
+use chrono::{Datelike, Days, IsoWeek, NaiveDate, Weekday};
 use utils::date::{Month, Navigation, ToDateIterator, Year};
+
+pub trait Prepare {
+    fn prepare(&self, from: NaiveDate, to: NaiveDate, page_options: PageOptions) -> Result<()>;
+}
+
+impl Prepare for Vault {
+    fn prepare(&self, from: NaiveDate, to: NaiveDate, mut page_options: PageOptions) -> Result<()> {
+        page_options.update(self.config().settings());
+
+        Preparer {
+            from,
+            to,
+            page_options,
+            vault: self,
+        }
+        .run()
+    }
+}
 
 pub struct Preparer<'a> {
     pub from: NaiveDate,

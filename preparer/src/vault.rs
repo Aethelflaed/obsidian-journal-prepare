@@ -1,15 +1,11 @@
-use crate::options::PageOptions;
 use crate::page::Page;
 use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
-use chrono::NaiveDate;
 use std::path::{Path, PathBuf};
 use utils::events::Event;
 
 pub mod config;
 pub use config::Config;
-
-pub mod preparer;
 
 /// A vault represents the whole folder with all the documents, e.g. the obsidian folder (which
 /// they name a vault)
@@ -31,25 +27,12 @@ impl Vault {
         Ok(Self { config, events })
     }
 
-    pub fn prepare(
-        &self,
-        from: NaiveDate,
-        to: NaiveDate,
-        mut page_options: PageOptions,
-    ) -> Result<()> {
-        page_options.update(self.config.settings());
-
-        preparer::Preparer {
-            from,
-            to,
-            page_options,
-            vault: self,
-        }
-        .run()
-    }
-
     pub fn path(&self) -> &Path {
         self.config.path()
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     pub fn events(&self) -> std::slice::Iter<'_, Event> {

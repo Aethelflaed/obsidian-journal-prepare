@@ -2,9 +2,11 @@ use anyhow::Result;
 
 mod options;
 mod page;
+mod preparer;
 mod utils;
 mod vault;
 
+use preparer::Prepare;
 use vault::Vault;
 
 fn parse() -> options::Options {
