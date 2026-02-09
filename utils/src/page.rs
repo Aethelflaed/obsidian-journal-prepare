@@ -1,10 +1,7 @@
-use anyhow::{Context, Result};
+use crate::content::{Content, ContentError, Entry};
 use std::fmt::Display;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-
-pub mod content;
-pub use content::{Content, Entry};
 
 #[derive(Debug)]
 pub struct Page {
@@ -14,19 +11,38 @@ pub struct Page {
     content: Content,
 }
 
+#[derive(Debug, derive_more::Error, derive_more::Display)]
+pub enum PageError {
+    #[display("Error creating dir {}: {_0}", _1.display())]
+    CreatingDir(std::io::Error, PathBuf),
+    #[display("Error creating file {}: {_0}", _1.display())]
+    CreatingFile(std::io::Error, PathBuf),
+    #[display("Error writing file {}: {_0}", _1.display())]
+    WritingFile(std::io::Error, PathBuf),
+    #[display("Error reading file {}: {_0}", _1.display())]
+    ReadingFile(std::io::Error, PathBuf),
+    ParsingContent(ContentError),
+}
+
 impl Page {
-    pub fn write(&mut self) -> Result<()> {
-        if let Some(parent) = self.path.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent)
-                    .with_context(|| format!("creating dir {}", parent.display()))?;
-            }
+    /// Write the page to disk
+    ///
+    /// # Errors
+    /// - `CreatingDir`
+    /// - `CreatingFile`
+    /// - `WritingFile`
+    pub fn write(&mut self) -> Result<(), PageError> {
+        if let Some(parent) = self.path.parent()
+            && !parent.exists()
+        {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| PageError::CreatingDir(e, parent.to_path_buf()))?;
         }
 
         let mut file = std::fs::File::create(&self.path)
-            .with_context(|| format!("creating file {}", self.path.display()))?;
+            .map_err(|e| PageError::CreatingFile(e, self.path.clone()))?;
         write!(file, "{}", self.content)
-            .with_context(|| format!("writing file {}", self.path.display()))?;
+            .map_err(|e| PageError::WritingFile(e, self.path.clone()))?;
 
         self.exists = true;
         self.modified = false;
@@ -67,32 +83,34 @@ impl Page {
         }
     }
 
+    #[must_use]
     pub const fn modified(&self) -> bool {
         self.modified
     }
 
+    #[must_use]
     pub const fn exists(&self) -> bool {
         self.exists
     }
 }
 
 impl TryFrom<&Path> for Page {
-    type Error = anyhow::Error;
+    type Error = PageError;
 
-    fn try_from(path: &Path) -> Result<Self> {
+    fn try_from(path: &Path) -> Result<Self, Self::Error> {
         Self::try_from(path.to_path_buf())
     }
 }
 
 impl TryFrom<PathBuf> for Page {
-    type Error = anyhow::Error;
+    type Error = PageError;
 
-    fn try_from(path: PathBuf) -> Result<Self> {
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
         let page = if path.exists() {
             let content = std::fs::read_to_string(&path)
-                .with_context(|| format!("reading file {}", path.display()))?
+                .map_err(|e| PageError::ReadingFile(e, path.clone()))?
                 .parse()
-                .with_context(|| format!("reading file {}", path.display()))?;
+                .map_err(PageError::ParsingContent)?;
             Self {
                 path,
                 exists: true,
@@ -116,13 +134,14 @@ impl TryFrom<PathBuf> for Page {
 mod tests {
     use super::*;
     use assert_fs::prelude::*;
+    use claim::assert_ok;
     use indoc::{formatdoc, indoc};
 
     #[test]
-    fn track_existence_and_modification() -> Result<()> {
-        let temp_dir = assert_fs::TempDir::new()?;
+    fn track_existence_and_modification() {
+        let temp_dir = assert_ok!(assert_fs::TempDir::new());
         let file = temp_dir.child("dir/page.md");
-        let mut page = Page::try_from(file.path())?;
+        let mut page = assert_ok!(Page::try_from(file.path()));
 
         assert!(!page.exists());
         assert!(!page.modified());
@@ -133,7 +152,7 @@ mod tests {
         assert!(!page.exists());
         assert!(page.modified());
 
-        page.write()?;
+        assert_ok!(page.write());
         file.assert(indoc! {"
             ---
             foo: bar
@@ -152,13 +171,11 @@ mod tests {
 
         page.prepend_line("Hello World");
         assert!(page.modified());
-
-        Ok(())
     }
 
     #[test]
-    fn parse_page_from_path_and_write_it_again() -> Result<()> {
-        let temp_dir = assert_fs::TempDir::new()?;
+    fn parse_page_from_path_and_write_it_again() {
+        let temp_dir = assert_ok!(assert_fs::TempDir::new());
         let file = temp_dir.child("page.md");
 
         let properties = r#"month: "[[2024/September]]""#;
@@ -168,25 +185,25 @@ mod tests {
             - One other thing
         "};
 
-        file.write_str(
-            formatdoc!(
-                "
+        assert_ok!(
+            file.write_str(
+                formatdoc!(
+                    "
                 ---
                 {properties}
                 ---
                 {entries}"
+                )
+                .as_str(),
             )
-            .as_str(),
-        )?;
+        );
 
-        let mut page = Page::try_from(file.path())?;
-        page.write()?;
+        let mut page = assert_ok!(Page::try_from(file.path()));
+        assert_ok!(page.write());
         file.assert(formatdoc! {"
             ---
             {properties}
             ---
             {entries}"});
-
-        Ok(())
     }
 }

@@ -169,6 +169,10 @@ impl From<&clap::ArgMatches> for PageOptions {
     }
 }
 
+/// Parse given arguments
+///
+/// # Errors
+/// `clap::error::Error`: Error parsing arguments
 pub fn parse<I, T>(args_iter: I) -> Result<Options, clap::error::Error>
 where
     I: IntoIterator<Item = T>,
@@ -237,7 +241,7 @@ where
 
     let path = matches
         .get_one::<std::path::PathBuf>("path")
-        .expect("'PATH' is required and parsing will fail if its missing")
+        .unwrap_or_else(|| unreachable!("'PATH' is required and parsing will fail if its missing"))
         .clone();
 
     let log_level_filter = Verbosity::<ErrorLevel>::new(

@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-mod page;
 mod preparer;
 mod utils;
 mod vault;

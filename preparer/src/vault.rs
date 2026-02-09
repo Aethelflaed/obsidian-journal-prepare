@@ -1,8 +1,8 @@
-use crate::page::Page;
 use crate::utils::{PageKind, PageName, ToPageName};
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use utils::events::Event;
+use utils::page::Page;
 
 pub mod config;
 pub use config::Config;

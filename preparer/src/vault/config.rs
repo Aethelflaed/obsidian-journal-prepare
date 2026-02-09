@@ -1,10 +1,11 @@
-use crate::page::{Entry, Page};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use utils::content::Entry;
 use utils::events::Event;
 use utils::options::PageSettings;
+use utils::page::{Page, PageError};
 
 #[derive(Debug)]
 pub struct Config {
@@ -36,7 +37,7 @@ impl Default for SerdeConfig {
 
 #[derive(Debug, derive_more::From, derive_more::Display, derive_more::Error)]
 pub enum ConfigError {
-    ReadingFile(anyhow::Error),
+    ReadingFile(PageError),
     Toml(toml::de::Error),
 }
 
