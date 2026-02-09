@@ -116,16 +116,13 @@ impl std::ops::Sub<Months> for Month {
     }
 }
 
-pub trait ToDateIterator {
-    type Element;
+pub trait ToDateIterator: Sized {
+    type Element: Navigation + std::cmp::PartialOrd + Clone;
 
     fn first(&self) -> Self::Element;
     fn last(&self) -> Self::Element;
 
-    fn iter(&self) -> DateIterator<'_, Self, Self::Element>
-    where
-        Self::Element: Navigation + std::cmp::PartialOrd + Clone,
-    {
+    fn iter(&self) -> DateIterator<'_, Self, Self::Element> {
         DateIterator {
             range: self,
             current: None,
@@ -215,7 +212,7 @@ impl Navigation for IsoWeek {
 
 pub struct DateIterator<'a, T, U>
 where
-    T: ToDateIterator<Element = U> + ?Sized,
+    T: ToDateIterator<Element = U>,
     U: Navigation + std::cmp::PartialOrd + Clone,
 {
     range: &'a T,

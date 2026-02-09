@@ -12,7 +12,7 @@ struct Detector<'a> {
 }
 
 impl<'a> Detector<'a> {
-    fn new(path: &'a Path) -> Detector<'a> {
+    const fn new(path: &'a Path) -> Self {
         Self {
             path,
             detected: false,
@@ -54,7 +54,7 @@ fn main() -> Result<()> {
         let dent = match result {
             Ok(dent) => dent,
             Err(err) => {
-                eprintln!("{}", err);
+                eprintln!("{err}");
                 continue;
             }
         };

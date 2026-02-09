@@ -8,6 +8,7 @@ pub struct Env {
 }
 
 impl Env {
+    /// # Errors
     pub fn new() -> Result<Self> {
         Ok(Self {
             path: TempDir::new()?
@@ -15,6 +16,7 @@ impl Env {
         })
     }
 
+    /// # Errors
     pub fn command(&self) -> Result<Command> {
         let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("obsidian-journal-prepare");
         cmd.arg("--path").arg(self.path.path());

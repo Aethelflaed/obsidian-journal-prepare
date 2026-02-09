@@ -117,7 +117,7 @@ impl Config {
             .with_context(|| format!("parsing \"{}\"", daily_notes_config.display()))?;
 
         if let Some(folder) = config["folder"].as_str() {
-            log::info!("Using journals folder {}", folder);
+            log::info!("Using journals folder {folder}");
             self.journals_folder = Some(folder.to_owned());
         }
 
@@ -138,7 +138,7 @@ impl Config {
                 if let Entry::CodeBlock(block) = entry {
                     if block.is_toml() {
                         let event = block.try_into()?;
-                        log::debug!("Event: {:?}", event);
+                        log::debug!("Event: {event:?}");
                         events.push(event);
                     }
                 }

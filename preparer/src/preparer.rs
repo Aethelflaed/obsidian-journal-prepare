@@ -45,8 +45,8 @@ fn weekday(date: NaiveDate) -> &'static str {
 impl Preparer<'_> {
     pub fn run(&self) -> Result<()> {
         log::info!(
-            "Preparing journal {:?} from {} to {}",
-            self.vault.path(),
+            "Preparing journal {} from {} to {}",
+            self.vault.path().display(),
             self.from,
             self.to
         );
