@@ -16,7 +16,7 @@ The months also each get a page with the days embedded for a monthly view.
 Prepare the journal at the given path for the provided period:
 
 ```sh
-obsidian-journal-prepare --path path/to/obsidian --from 2024-09-01 --to 2024-09-30
+preparer --path path/to/obsidian --from 2024-09-01 --to 2024-09-30
 ```
 
 ## Configuration
@@ -24,8 +24,8 @@ obsidian-journal-prepare --path path/to/obsidian --from 2024-09-01 --to 2024-09-
 ### Command line options
 
 ```
-$ obsidian-journal-prepare --help
-Usage: obsidian-journal-prepare [OPTIONS] --path <PATH>
+$ preparer --help
+Usage: preparer [OPTIONS] --path <PATH>
 
 Options:
   -v, --verbose...

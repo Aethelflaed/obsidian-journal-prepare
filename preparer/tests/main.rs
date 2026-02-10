@@ -18,7 +18,7 @@ impl Env {
 
     /// # Errors
     pub fn command(&self) -> Result<Command> {
-        let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("obsidian-journal-prepare");
+        let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("preparer");
         cmd.arg("--path").arg(self.path.path());
         Ok(cmd)
     }
