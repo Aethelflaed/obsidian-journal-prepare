@@ -2,9 +2,10 @@ use crate::date::{InvalidMonthday, InvalidYearday, Month, Monthday, Yearday};
 use chrono::{Datelike, NaiveDate, Weekday};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, derive_more::IsVariant)]
+#[derive(Debug, Default, Serialize, Deserialize, derive_more::IsVariant)]
 #[serde(rename_all = "snake_case")]
 pub enum Frequency {
+    #[default]
     Daily,
     Weekly,
     Monthly,
@@ -74,7 +75,7 @@ impl Recurrence {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SerdeRecurrence {
     frequency: Frequency,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -206,6 +207,43 @@ impl TryFrom<SerdeRecurrence> for Recurrence {
                 Self::Once(serde.dates)
             }
         })
+    }
+}
+
+impl From<Recurrence> for SerdeRecurrence {
+    fn from(recurrence: Recurrence) -> Self {
+        match recurrence {
+            Recurrence::Daily => Self {
+                frequency: Frequency::Daily,
+                ..Default::default()
+            },
+            Recurrence::Weekly(weekdays) => Self {
+                frequency: Frequency::Weekly,
+                weekdays,
+                ..Default::default()
+            },
+            Recurrence::Monthly(monthdays) => Self {
+                frequency: Frequency::Monthly,
+                monthdays: monthdays.into_iter().map(u32::from).collect(),
+                ..Default::default()
+            },
+            Recurrence::RelativeMonthly(weekdays, index) => Self {
+                frequency: Frequency::Monthly,
+                weekdays,
+                index: Some(index),
+                ..Default::default()
+            },
+            Recurrence::Yearly(yeardays) => Self {
+                frequency: Frequency::Yearly,
+                yeardays: yeardays.into_iter().map(u32::from).collect(),
+                ..Default::default()
+            },
+            Recurrence::Once(dates) => Self {
+                frequency: Frequency::Once,
+                dates,
+                ..Default::default()
+            },
+        }
     }
 }
 

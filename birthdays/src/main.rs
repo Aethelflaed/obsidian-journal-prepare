@@ -1,22 +1,24 @@
 use anyhow::Result;
+use chrono::{Datelike, NaiveDate, Utc};
 use grep::{
     regex::RegexMatcher,
     searcher::{BinaryDetection, Searcher, SearcherBuilder, Sink, SinkError, SinkMatch},
 };
-use std::path::Path;
+use utils::{
+    content::CodeBlock,
+    events::{Event, SerdeEvent},
+    page::Page,
+};
 use walkdir::WalkDir;
 
-struct Detector<'a> {
-    path: &'a Path,
+#[derive(Default)]
+struct Detector {
     detected: bool,
 }
 
-impl<'a> Detector<'a> {
-    const fn new(path: &'a Path) -> Self {
-        Self {
-            path,
-            detected: false,
-        }
+impl Detector {
+    const fn detected(&self) -> bool {
+        self.detected
     }
 }
 
@@ -30,13 +32,10 @@ impl SinkError for Error {
     }
 }
 
-impl Sink for Detector<'_> {
+impl Sink for Detector {
     type Error = Error;
 
     fn matched(&mut self, _searcher: &Searcher, _mat: &SinkMatch<'_>) -> Result<bool, Self::Error> {
-        if !self.detected {
-            println!("{}", self.path.display());
-        }
         self.detected = true;
         Ok(true)
     }
@@ -50,7 +49,15 @@ fn main() -> Result<()> {
         .line_number(false)
         .build();
 
-    for result in WalkDir::new("journal") {
+    let options = match utils::options::parse(std::env::args_os()) {
+        Ok(options) => options,
+        Err(err) => err.exit(),
+    };
+
+    let today = Utc::now().date_naive();
+    std::env::set_current_dir(options.path)?;
+
+    for result in WalkDir::new(".") {
         let dent = match result {
             Ok(dent) => dent,
             Err(err) => {
@@ -61,8 +68,53 @@ fn main() -> Result<()> {
         if !dent.file_type().is_file() {
             continue;
         }
-        let sink = Detector::new(dent.path());
-        searcher.search_path(&matcher, dent.path(), sink)?;
+        let mut detector = Detector::default();
+        searcher.search_path(&matcher, dent.path(), &mut detector)?;
+
+        if detector.detected() {
+            let page = Page::try_from(dent.path())?;
+            if let Some(birthday) = page
+                .get_property("birthday")
+                .and_then(|bd| bd.as_str())
+                .and_then(|bd| bd.parse::<NaiveDate>().ok())
+            {
+                let date = NaiveDate::from_ymd_opt(today.year(), birthday.month(), birthday.day())
+                    .unwrap_or_else(|| {
+                        NaiveDate::from_yo_opt(today.year(), birthday.ordinal()).unwrap()
+                    });
+                let name = page
+                    .get_property("aliases")
+                    .and_then(|aliases| aliases.as_sequence_get(0))
+                    .map_or_else(
+                        || dent.path().file_stem().unwrap().to_str(),
+                        |alias| alias.as_str(),
+                    )
+                    .unwrap();
+
+                let path = dent.path().strip_prefix("./")?;
+                let ext = path
+                    .extension()
+                    .unwrap()
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid path"))?;
+                let page = path
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid path"))?
+                    .strip_suffix(format!(".{ext}").as_str())
+                    .unwrap();
+
+                let content = date.years_since(birthday).map_or_else(
+                    || format!("- [ ] Wish [[{page}|{name}]] a happy birthday"),
+                    |years| {
+                        format!("- [ ] [[{page}|{name}]] is {years} years old, wish them a happy birthday!")
+                    },
+                );
+                let event = Event::date(date, content);
+                let block = CodeBlock::toml(toml::to_string(&SerdeEvent::from(event))?);
+
+                println!("{block}");
+            }
+        }
     }
     Ok(())
 }

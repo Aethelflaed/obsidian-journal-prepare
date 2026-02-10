@@ -38,6 +38,11 @@ impl Content {
             .is_none_or(|previous_value| previous_value != to_yaml_str(value))
     }
 
+    #[must_use]
+    pub(super) fn get_property(&self, key: &str) -> Option<&YamlOwned> {
+        self.properties.as_mapping_get(key)
+    }
+
     /// Prepend the given entry if it is not already present
     ///
     /// Return value indicates if the content has been modified or not

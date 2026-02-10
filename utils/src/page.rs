@@ -1,4 +1,5 @@
 use crate::content::{Content, ContentError, Entry};
+use saphyr::YamlOwned;
 use std::fmt::Display;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -81,6 +82,11 @@ impl Page {
         if self.content.insert_property(key.into(), format!("{value}")) {
             self.modified = true;
         }
+    }
+
+    #[must_use]
+    pub fn get_property(&self, key: &str) -> Option<&YamlOwned> {
+        self.content.get_property(key)
     }
 
     #[must_use]

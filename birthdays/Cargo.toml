@@ -5,7 +5,9 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.100"
+chrono = "0.4.43"
 derive_more = { version = "2.1.1", features = ["display", "error"] }
 grep = "0.4.1"
+toml = "0.9.11"
 utils = { path = "../utils" }
 walkdir = "2.5.0"

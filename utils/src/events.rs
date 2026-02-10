@@ -15,6 +15,18 @@ pub struct Event {
     exceptions: Vec<DateRange>,
 }
 
+impl Event {
+    #[must_use]
+    pub fn date(date: NaiveDate, content: String) -> Self {
+        Self {
+            recurrence: Recurrence::Once(vec![date]),
+            content,
+            validity: DateRange::default(),
+            exceptions: vec![],
+        }
+    }
+}
+
 impl TryFrom<SerdeEvent> for Event {
     type Error = InvalidRecurrence;
 
@@ -28,6 +40,17 @@ impl TryFrom<SerdeEvent> for Event {
     }
 }
 
+impl From<Event> for SerdeEvent {
+    fn from(event: Event) -> Self {
+        Self {
+            recurrence: event.recurrence.into(),
+            content: event.content,
+            validity: event.validity,
+            exceptions: event.exceptions,
+        }
+    }
+}
+
 /// Describe a recurring event in a format that can easily be serialized and deserialized
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SerdeEvent {
@@ -36,7 +59,7 @@ pub struct SerdeEvent {
     content: String,
     #[serde(flatten)]
     validity: DateRange,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     exceptions: Vec<DateRange>,
 }
 

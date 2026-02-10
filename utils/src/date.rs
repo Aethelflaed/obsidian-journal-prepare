@@ -23,6 +23,12 @@ impl TryFrom<u32> for Monthday {
     }
 }
 
+impl From<Monthday> for u32 {
+    fn from(monthday: Monthday) -> Self {
+        monthday.0
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Yearday(u32);
 
@@ -39,6 +45,12 @@ impl TryFrom<u32> for Yearday {
         } else {
             Err(InvalidYearday(index))
         }
+    }
+}
+
+impl From<Yearday> for u32 {
+    fn from(yearday: Yearday) -> Self {
+        yearday.0
     }
 }
 
